@@ -1,0 +1,21 @@
+{
+  "bedrock_compat.title.addons": "Add-ons",
+  "bedrock_compat.screen.title": "Crossrock Add-ons",
+  "bedrock_compat.open_folder": "Open Add-ons Folder",
+  "bedrock_compat.refresh": "Refresh",
+  "bedrock_compat.errors": "Errors (%s)",
+  "bedrock_compat.errors.title": "Add-on Errors and Warnings",
+  "bedrock_compat.drop.title": "Add Bedrock packs?",
+  "bedrock_compat.drop.message": "Copy %s dropped file(s) or folder(s) into the add-ons folder?",
+  "bedrock_compat.empty": "No Bedrock packs found. Place packs in the addons folder.",
+  "bedrock_compat.summary": "%s loaded, %s errors",
+  "bedrock_compat.status.loaded": "Loaded",
+  "bedrock_compat.status.warnings": "Loaded with %s warning(s)",
+  "bedrock_compat.status.error": "Parsing error",
+  "bedrock_compat.virtual_pack.name": "Crossrock Resources",
+  "bedrock_compat.virtual_pack.description": "Generated Java resources translated from selected Bedrock add-ons",
+  "bedrock_compat.config.button": "Config",
+  "bedrock_compat.config.title": "%s Settings",
+  "bedrock_compat.config.subpack": "Subpack",
+  "bedrock_compat.config.none": "This pack has no configurable options."
+}

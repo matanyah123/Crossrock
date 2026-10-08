@@ -1,0 +1,13 @@
+.gradle/
+build/
+run/
+logs/
+*.iml
+.idea/
+.DS_Store
+.codex-backups/
+__pycache__/
+*.py[cod]
+# Separate pack-port project and extracted third-party pack assets stay local.
+/villager-news-java/
+/eef/eef-developer-test-pack.zip

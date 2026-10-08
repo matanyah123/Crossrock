@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "dev.matanyah.bedrockcompat.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["BuiltInPackSourceMixin", "OptionsMixin", "NativeEntityRenderStateMixin", "NativeLivingEntityRendererMixin", "NativeEntityExtractionMixin", "NativeEntityDispatcherMixin", "NativeEntityNameInvoker", "NativePlayerRendererMixin", "NativePlayerHandsMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

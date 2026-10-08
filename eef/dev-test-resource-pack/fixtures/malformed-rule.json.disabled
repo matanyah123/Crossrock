@@ -1,0 +1,5 @@
+{
+  "id": "malformed_test",
+  "schema": 2,
+  "rules": [{"event": "event_that_does_not_exist", "actions": []}]
+}

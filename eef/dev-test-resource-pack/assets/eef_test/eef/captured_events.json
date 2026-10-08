@@ -1,0 +1,576 @@
+{
+  "id": "eef_test_captured_events",
+  "schema": 2,
+  "rules": [
+    {
+      "id": "world_loaded",
+      "event": "world_loaded",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [{"type": "actionbar", "text": "[EEF] WORLD_LOADED observed"}]
+    },
+    {
+      "id": "player_joined",
+      "event": "player_joined",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [{"type": "subtitle", "text": "[EEF] PLAYER_JOINED observed", "delay_ticks": 10}]
+    },
+    {
+      "id": "calendar_context",
+      "event": "world_loaded",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "calendar.day_of_week", "operator": "exists"},
+        {"path": "calendar.hour", "operator": "gte", "value": 0}
+      ],
+      "actions": [{"type": "subtitle", "text": "[EEF] calendar context available", "delay_ticks": 30}]
+    },
+    {
+      "id": "pig_loaded",
+      "event": "entity_loaded",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "self.type", "operator": "eq", "value": "minecraft:pig"}],
+      "cooldown": {"scope": "entity", "ticks": 20},
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_LOADED: pig"}]
+    },
+    {
+      "id": "pig_damaged_weighted",
+      "event": "entity_damaged",
+      "reliability": ["CLIENT_INFERRED", "SERVER_REQUIRED"],
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:pig"},
+        {"path": "self.health", "operator": "gte", "value": 0},
+        {"path": "distance.observer_to_self", "operator": "lte", "value": 32},
+        {"path": "damage.amount", "operator": "gt", "value": 0}
+      ],
+      "cooldown": {"scope": "rule_entity", "ticks": 2},
+      "avoid_immediate_repeat": true,
+      "outcomes": [
+        {
+          "id": "weighted_a",
+          "weight": 1,
+          "actions": [
+            {"type": "actionbar", "text": "[EEF] ENTITY_DAMAGED — weighted outcome A"},
+            {"type": "subtitle", "text": "[EEF] delayed damage cue", "delay_ticks": 10}
+          ]
+        },
+        {
+          "id": "weighted_b",
+          "weight": 1,
+          "actions": [
+            {"type": "actionbar", "text": "[EEF] ENTITY_DAMAGED — weighted outcome B"},
+            {"type": "subtitle", "text": "[EEF] delayed damage cue", "delay_ticks": 10}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "authoritative_damage_context",
+      "event": "entity_damaged",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [
+        {"path": "damage.authoritative", "operator": "eq", "value": true},
+        {"path": "damage.type", "operator": "exists"},
+        {"path": "attacker.type", "operator": "exists"}
+      ],
+      "actions": [
+        {"type": "actionbar", "text": "[EEF] SERVER_REQUIRED damage: attacker + source captured"},
+        {"type": "subtitle", "text": "[EEF] authoritative damage context", "delay_ticks": 6}
+      ]
+    },
+    {
+      "id": "pig_died",
+      "event": "entity_died",
+      "reliability": ["CLIENT_OBSERVED", "SERVER_REQUIRED"],
+      "conditions": [{"path": "self.type", "operator": "eq", "value": "minecraft:pig"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_DIED: pig"}]
+    },
+    {
+      "id": "entity_removed",
+      "event": "entity_removed",
+      "reliability": "CLIENT_INFERRED",
+      "conditions": [{"path": "removed_entity_id", "operator": "exists"}],
+      "cooldown": {"scope": "global", "ticks": 20},
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_REMOVED inferred"}]
+    },
+    {
+      "id": "player_moved",
+      "event": "player_moved",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "movement.delta_x", "operator": "exists"}],
+      "cooldown": {"scope": "rule", "ticks": 100},
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_MOVED (5-second rule cooldown)"}]
+    },
+    {
+      "id": "player_jumped",
+      "event": "player_jumped",
+      "reliability": "CLIENT_INFERRED",
+      "cooldown": {"scope": "rule_entity", "ticks": 5},
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_JUMPED inferred"}]
+    },
+    {
+      "id": "jump_random_chance",
+      "event": "player_jumped",
+      "reliability": "CLIENT_INFERRED",
+      "chance": 0.5,
+      "actions": [{"type": "subtitle", "text": "[EEF] 50% random-chance rule selected"}]
+    },
+    {
+      "id": "flying_started",
+      "event": "player_started_flying",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [
+        {"type": "extension_action_for_ignore_test", "value": true},
+        {"type": "actionbar", "text": "[EEF] PLAYER_STARTED_FLYING; unknown action safely ignored"}
+      ]
+    },
+    {
+      "id": "flying_stopped",
+      "event": "player_stopped_flying",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_STOPPED_FLYING"}]
+    },
+    {
+      "id": "sneaking_started_state",
+      "event": "player_started_sneaking",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [
+        {"type": "set_state", "key": "sneak_test", "value": true, "ttl_ticks": 100},
+        {"type": "actionbar", "text": "[EEF] PLAYER_STARTED_SNEAKING; state set"},
+        {"type": "subtitle", "text": "[EEF] delayed subtitle after 1 second", "delay_ticks": 20}
+      ]
+    },
+    {
+      "id": "sneaking_stopped_state",
+      "event": "player_stopped_sneaking",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "state.sneak_test", "operator": "eq", "value": true}],
+      "actions": [
+        {"type": "actionbar", "text": "[EEF] PLAYER_STOPPED_SNEAKING; prior state matched"},
+        {"type": "clear_state", "key": "sneak_test"}
+      ]
+    },
+    {
+      "id": "swimming_started",
+      "event": "player_started_swimming",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_STARTED_SWIMMING"}]
+    },
+    {
+      "id": "swimming_stopped",
+      "event": "player_stopped_swimming",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_STOPPED_SWIMMING"}]
+    },
+    {
+      "id": "riding_started_sequence",
+      "event": "riding_started",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "target.type", "operator": "exists"}],
+      "actions": [{
+        "type": "sequence",
+        "key": "riding_test",
+        "mode": "ignore",
+        "steps": [
+          {"delay_ticks": 0, "actions": [{"type": "actionbar", "text": "[EEF] RIDING_STARTED — sequence step 1"}]},
+          {"delay_ticks": 40, "actions": [{"type": "subtitle", "text": "[EEF] riding sequence step 2 after 2 seconds"}]}
+        ]
+      }]
+    },
+    {
+      "id": "riding_stopped_cancel",
+      "event": "riding_stopped",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [
+        {"type": "cancel_sequence", "key": "riding_test"},
+        {"type": "actionbar", "text": "[EEF] RIDING_STOPPED — pending sequence cancelled"}
+      ]
+    },
+    {
+      "id": "time_changed",
+      "event": "time_changed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "world.day_time", "operator": "gte", "value": 0}],
+      "cooldown": {"scope": "global", "ticks": 200},
+      "actions": [{"type": "actionbar", "text": "[EEF] TIME_CHANGED (10-second global cooldown)"}]
+    },
+    {
+      "id": "weather_changed",
+      "event": "weather_changed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "world.raining", "operator": "exists"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] WEATHER_CHANGED"}]
+    },
+    {
+      "id": "game_mode_changed",
+      "event": "player_game_mode_changed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "player.game_mode", "operator": "exists"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_GAME_MODE_CHANGED"}]
+    },
+    {
+      "id": "difficulty_changed",
+      "event": "world_difficulty_changed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "change.after", "operator": "exists"}],
+      "actions": [{"type": "subtitle", "text": "[EEF] WORLD_DIFFICULTY_CHANGED"}]
+    },
+    {
+      "id": "pig_entered_range",
+      "event": "entity_entered_range",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:pig"},
+        {"path": "distance.observer_to_self", "operator": "lte", "value": 6}
+      ],
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_ENTERED_RANGE: pig crossed 6 blocks"}]
+    },
+    {
+      "id": "pig_exited_range",
+      "event": "entity_exited_range",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:pig"},
+        {"path": "distance.observer_to_self", "operator": "gt", "value": 6}
+      ],
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_EXITED_RANGE: pig crossed 6 blocks"}]
+    },
+    {
+      "id": "pig_entered_water_environment",
+      "event": "entity_observed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:pig"},
+        {"path": "self.environment.in_water", "operator": "eq", "value": true},
+        {"path": "self.environment.block_below", "operator": "exists"},
+        {"path": "self.environment.biome", "operator": "exists"}
+      ],
+      "activation": {"mode": "entered", "key": "self.id"},
+      "actions": [{"type": "actionbar", "text": "[EEF] ENVIRONMENT: pig entered water"}]
+    },
+    {
+      "id": "entity_attacked",
+      "event": "entity_interacted",
+      "detail": "entity_event_features:attack",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "actor.type", "operator": "eq", "value": "minecraft:player"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_INTERACTED: attack"}]
+    },
+    {
+      "id": "entity_used",
+      "event": "entity_interacted",
+      "detail": "entity_event_features:use",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "target.type", "operator": "eq", "value": "minecraft:player"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_INTERACTED: use"}]
+    },
+    {
+      "id": "block_attacked",
+      "event": "player_breaking_block",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "block.type", "operator": "exists"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_BREAKING_BLOCK"}]
+    },
+    {
+      "id": "block_used",
+      "event": "player_interacted_with_block",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "item.type", "operator": "exists"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] PLAYER_INTERACTED_WITH_BLOCK"}]
+    },
+    {
+      "id": "item_used_on_block",
+      "event": "item_use_on_block_started",
+      "reliability": "CLIENT_OBSERVED",
+      "actions": [{"type": "subtitle", "text": "[EEF] ITEM_USE_ON_BLOCK_STARTED"}]
+    },
+    {
+      "id": "item_used",
+      "event": "item_used",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "item.empty", "operator": "eq", "value": false}],
+      "actions": [{"type": "actionbar", "text": "[EEF] ITEM_USED"}]
+    },
+    {
+      "id": "audio_channel_first",
+      "event": "item_used",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "item.empty", "operator": "eq", "value": false}],
+      "actions": [
+        {"type": "play_sound", "sound": "minecraft:entity.experience_orb.pickup", "at": "self", "follow_entity": true, "channel": "test_dialogue", "channel_scope": "global", "duration_ticks": 10, "gap_ticks": 2},
+        {"type": "actionbar", "text": "[EEF] AUDIO CHANNEL: first bundle"}
+      ]
+    },
+    {
+      "id": "audio_channel_second",
+      "event": "item_used",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [{"path": "item.empty", "operator": "eq", "value": false}],
+      "actions": [
+        {"type": "play_sound", "sound": "minecraft:block.note_block.pling", "at": "self", "follow_entity": false, "channel": "test_dialogue", "channel_scope": "global", "duration_ticks": 10, "gap_ticks": 2},
+        {"type": "actionbar", "text": "[EEF] AUDIO CHANNEL: second bundle"}
+      ]
+    },
+    {
+      "id": "block_broken",
+      "event": "block_broken",
+      "reliability": "CLIENT_INFERRED",
+      "conditions": [{"path": "previous_block.air", "operator": "eq", "value": false}],
+      "actions": [{"type": "subtitle", "text": "[EEF] BLOCK_BROKEN inferred"}]
+    },
+    {
+      "id": "block_placed",
+      "event": "block_placed",
+      "reliability": "CLIENT_INFERRED",
+      "conditions": [{"path": "block.air", "operator": "eq", "value": false}],
+      "actions": [{"type": "subtitle", "text": "[EEF] BLOCK_PLACED inferred"}]
+    },
+    {
+      "id": "nearby_pig_subject_binding",
+      "event": "block_placed",
+      "reliability": "CLIENT_INFERRED",
+      "subjects": {
+        "self": {
+          "query": "nearby_entities",
+          "origin": "event.position",
+          "radius": 12,
+          "conditions": [{"path": "type", "operator": "eq", "value": "minecraft:pig"}],
+          "selection": "nearest",
+          "limit": 1
+        }
+      },
+      "conditions": [
+        {"path": "actor.type", "operator": "eq", "value": "minecraft:player"},
+        {"path": "query.distance", "operator": "lte", "value": 12}
+      ],
+      "cooldown": {"scope": "rule_entity", "ticks": 20},
+      "actions": [
+        {"type": "actionbar", "text": "[EEF] NEARBY SUBJECT: nearest pig selected for block placement"},
+        {"type": "subtitle", "text": "[EEF] subject binding targets the pig", "delay_ticks": 8}
+      ]
+    },
+    {
+      "id": "cow_observes_pig",
+      "event": "entity_observed",
+      "reliability": "CLIENT_OBSERVED",
+      "subjects": {
+        "self": {
+          "query": "nearby_entities",
+          "origin": "self",
+          "radius": 10,
+          "preserve_as": "target",
+          "exclude": ["target"],
+          "line_of_sight": true,
+          "retrigger": "after_exit",
+          "exit_grace_ticks": 100,
+          "conditions": [{"path": "type", "operator": "eq", "value": "minecraft:cow"}],
+          "selection": "random",
+          "limit": 1
+        }
+      },
+      "conditions": [
+        {"path": "target.type", "operator": "eq", "value": "minecraft:pig"},
+        {"path": "relationships.self_to_target.distance", "operator": "lte", "value": 10},
+        {"path": "relationships.self_to_target.line_of_sight", "operator": "eq", "value": true},
+        {"path": "relationships.self_to_target.same_entity", "operator": "eq", "value": false}
+      ],
+      "actions": [
+        {"type": "actionbar", "text": "[EEF] OBSERVER: one nearby cow observed a pig"},
+        {"type": "subtitle", "text": "[EEF] target preserved; distance + visibility matched", "delay_ticks": 8}
+      ]
+    },
+    {
+      "id": "player_sprinting_state_transition",
+      "event": "entity_state_changed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:player"},
+        {"path": "change.path", "operator": "eq", "value": "sprinting"}
+      ],
+      "actions": [
+        {"type": "actionbar", "text": "[EEF] ENTITY_STATE_CHANGED: sprinting toggled"},
+        {"type": "subtitle", "text": "[EEF] before/after state context emitted", "delay_ticks": 8}
+      ]
+    },
+    {
+      "id": "player_armor_predicate_entered",
+      "event": "entity_observed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:player"},
+        {"path": "self.armor_count", "operator": "gt", "value": 0}
+      ],
+      "activation": {"mode": "entered", "key": "self.id"},
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTERED: player began wearing armor"}]
+    },
+    {
+      "id": "player_stationary_dwell",
+      "event": "entity_observed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:player"},
+        {"path": "self.moving", "operator": "eq", "value": false}
+      ],
+      "activation": {"mode": "entered", "hold_ticks": 60, "key": "self.id"},
+      "actions": [{"type": "subtitle", "text": "[EEF] DWELL: stationary for at least 3 seconds"}]
+    },
+    {
+      "id": "player_speed_effect_exited",
+      "event": "entity_observed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:player"},
+        {"path": "self.effects", "operator": "contains", "value": "minecraft:speed"}
+      ],
+      "activation": {"mode": "exited", "key": "self.id"},
+      "actions": [{"type": "actionbar", "text": "[EEF] EXITED: Speed effect ended"}]
+    },
+    {
+      "id": "baby_tamed_wolf_entity_traits",
+      "event": "entity_observed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:wolf"},
+        {"path": "self.living", "operator": "eq", "value": true},
+        {"path": "self.mob", "operator": "eq", "value": true},
+        {"path": "self.baby", "operator": "eq", "value": true},
+        {"path": "self.tamed", "operator": "eq", "value": true},
+        {"path": "self.passenger_count", "operator": "eq", "value": 0}
+      ],
+      "activation": {"mode": "entered", "key": "self.id"},
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY TRAITS: baby + tamed wolf, no passengers"}]
+    },
+    {
+      "id": "world_time_skip_detected",
+      "event": "time_changed",
+      "reliability": "CLIENT_OBSERVED",
+      "conditions": [
+        {"path": "time.skipped", "operator": "eq", "value": true},
+        {"path": "time.cycle_delta", "operator": "gt", "value": 100}
+      ],
+      "actions": [{"type": "subtitle", "text": "[EEF] TIME SKIP: non-natural clock jump"}]
+    },
+    {
+      "id": "villager_activity_changed",
+      "event": "entity_activity_changed",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [
+        {"path": "self.type", "operator": "eq", "value": "minecraft:villager"},
+        {"path": "activity.after.primary_activity", "operator": "exists"},
+        {"path": "self.ai.activities", "operator": "exists"},
+        {"path": "self.ai.behaviors", "operator": "exists"}
+      ],
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_ACTIVITY_CHANGED: villager brain state changed"}]
+    },
+    {
+      "id": "block_state_changed",
+      "event": "block_state_changed",
+      "reliability": "CLIENT_INFERRED",
+      "conditions": [
+        {"path": "previous_block.type", "operator": "exists"},
+        {"path": "transition.action", "operator": "exists"}
+      ],
+      "actions": [{"type": "actionbar", "text": "[EEF] BLOCK_STATE_CHANGED: ${transition.action}"}]
+    },
+    {
+	  "id": "trade_attempt_authoritative",
+	  "event": "trade_attempted",
+	  "reliability": "SERVER_REQUIRED",
+	  "conditions": [
+		{"path": "trade_attempt.refusal_reason", "operator": "exists"},
+		{"path": "reputation.tier", "operator": "exists"}
+	  ],
+	  "actions": [{"type": "actionbar", "text": "[EEF] TRADE_ATTEMPTED: ${trade_attempt.refusal_reason}, ${reputation.tier}"}]
+	},
+	{
+      "id": "trade_screen_lifecycle",
+      "event": "trade_screen_opened",
+      "reliability": ["CLIENT_INFERRED", "SERVER_REQUIRED"],
+      "conditions": [{"path": "screen.kind", "operator": "eq", "value": "merchant"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] TRADE_SCREEN_OPENED"}]
+    },
+    {
+      "id": "trade_completed_authoritative",
+      "event": "trade_completed",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [
+        {"path": "trade.result.type", "operator": "exists"},
+        {"path": "trade.cost_a.type", "operator": "exists"},
+        {"path": "trade.session_count", "operator": "gte", "value": 1}
+      ],
+      "actions": [{"type": "subtitle", "text": "[EEF] TRADE_COMPLETED: items + uses captured"}]
+    },
+    {
+      "id": "trade_screen_closed",
+      "event": "trade_screen_closed",
+      "reliability": "CLIENT_INFERRED",
+      "conditions": [{"path": "screen.completed_trades", "operator": "gte", "value": 0}],
+      "actions": [{"type": "actionbar", "text": "[EEF] TRADE_SCREEN_CLOSED: session count captured"}]
+    },
+    {
+	  "id": "synchronized_villager_fanout",
+	  "event": "player_interacted_with_block",
+	  "reliability": "CLIENT_OBSERVED",
+	  "subjects": {"self": {
+		"query": "nearby_entities", "origin": "event.position", "radius": 16,
+		"conditions": {"type": "minecraft:villager"}, "selection": "all", "synchronize": true
+	  }},
+	  "conditions": {"block.type": "minecraft:bell"},
+	  "actions": [
+		{"type": "play_sound", "sound": "minecraft:block.note_block.chime", "at": "self",
+		 "channel": "test_fanout", "channel_scope": "entity", "duration_ticks": 8},
+		{"type": "subtitle", "text": "[EEF] SYNCHRONIZED FANOUT"}
+	  ]
+	},
+	{
+      "id": "speaker_lane_entity",
+      "event": "entity_activity_changed",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [{"path": "self.type", "operator": "eq", "value": "minecraft:villager"}],
+      "cooldown": {"scope": "entity", "ticks": 600},
+      "actions": [
+        {"type": "play_sound", "sound": "minecraft:entity.experience_orb.pickup", "at": "self", "follow_entity": true,
+         "channel": "test_speaker_lane", "channel_scope": "entity", "duration_ticks": 8},
+        {"type": "subtitle", "text": "[EEF] SPEAKER LANE: this villager owns its voice"}
+      ]
+    },
+	{
+      "id": "speaker_lane_conversation",
+      "event": "entity_activity_changed",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [{"path": "conversation.id", "operator": "exists"}],
+      "actions": [
+        {"type": "play_sound", "sound": "minecraft:block.note_block.pling", "at": "self", "follow_entity": true,
+         "channel": "test_conversation_lane", "channel_scope": "conversation", "channel_key_path": "conversation.id", "duration_ticks": 8},
+        {"type": "subtitle", "text": "[EEF] CONVERSATION LANE: shared turn-taking"}
+      ]
+    },
+    {
+      "id": "entity_spawned_authoritative",
+      "event": "entity_spawned",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [{"path": "lifecycle.cause", "operator": "exists"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] ENTITY_SPAWNED: ${lifecycle.cause}"}]
+    },
+    {
+      "id": "entity_transformed_authoritative",
+      "event": "entity_transformed",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [{"path": "source.type", "operator": "exists"}],
+      "actions": [{"type": "subtitle", "text": "[EEF] ENTITY_TRANSFORMED: ${source.type}"}]
+    },
+    {
+      "id": "item_pickup_authoritative",
+      "event": "item_picked_up",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [{"path": "item.type", "operator": "exists"}],
+      "actions": [{"type": "actionbar", "text": "[EEF] ITEM_PICKED_UP: ${item.type}"}]
+    },
+    {
+      "id": "projectile_hit_entity_authoritative",
+      "event": "projectile_hit_entity",
+      "reliability": "SERVER_REQUIRED",
+      "conditions": [{"path": "projectile.type", "operator": "exists"}],
+      "actions": [{"type": "subtitle", "text": "[EEF] PROJECTILE_HIT_ENTITY: ${projectile.type}"}]
+    }
+  ]
+}

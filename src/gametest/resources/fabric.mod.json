@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "bedrock_compat_test",
+  "version": "1.0.0",
+  "name": "Bedrock Compatibility Runtime Tests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["dev.matanyah.bedrockcompat.test.NativeEntityGameTest"]
+  }
+}

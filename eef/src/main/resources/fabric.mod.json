@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "entity_event_features",
+  "version": "${version}",
+  "name": "Entity Event Features",
+  "description": "A client-first contextual entity event API for resource packs and mods.",
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.matanyah.eef.EntityEventFeatures"],
+    "client": ["dev.matanyah.eef.client.EntityEventFeaturesClient"],
+    "modmenu": ["dev.matanyah.eef.client.EefModMenu"]
+  },
+  "mixins": ["eef.mixins.json", "eef.client.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}

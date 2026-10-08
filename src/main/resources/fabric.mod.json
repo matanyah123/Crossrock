@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "bedrock_compat",
+  "version": "${version}",
+  "name": "Crossrock",
+  "description": "A work-in-progress compatibility layer for Bedrock packs on Fabric.",
+  "icon": "assets/bedrock_compat/icon.png",
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.matanyah.bedrockcompat.BedrockCompat"],
+    "client": ["dev.matanyah.bedrockcompat.client.BedrockCompatClient"],
+    "modmenu": ["dev.matanyah.bedrockcompat.client.integration.BedrockCompatModMenu"]
+  },
+  "mixins": [
+    "bedrock_compat.mixins.json",
+    {
+      "config": "bedrock_compat.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": ">=20.0.1",
+    "entity_texture_features": ">=7.1",
+    "entity_model_features": ">=3.2",
+    "entity_sound_features": "*",
+    "entity_event_features": ">=0.1.0",
+    "punchy": "*"
+  }
+}
