@@ -10,7 +10,7 @@ To add a pack, just drag & drop onto the dedicated pack window, enable the pack 
 
 <img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/v.png" width="16" height="16" alt="Supported"> **Vanilla item textures**
 
-<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/x.png" width="16" height="16" alt="Unsupported"> Item models
+<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/v.png" width="16" height="16" alt="Supported"> **Item models**
 
 <img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/p.png" width="16" height="16" alt="Partial support"> Block textures and models — block/item asset coverage: **29%**
 
