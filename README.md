@@ -36,4 +36,4 @@ Crossrock is designed to be neutral: installing the mod by itself changes nothin
 
 Crossrock is currently in alpha. Many Bedrock features already work, but full Add-On compatibility is still a work in progress. Some packs or individual features may render incorrectly or not work yet.
 
-> Try it and let me know what you think in the Discord ❤
+> Try it and let me know what you think in [the Discord](https://discord.com/invite/79DmKrDepp) ❤
