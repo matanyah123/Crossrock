@@ -22,6 +22,17 @@ final class TexturePathMappings {
 	}
 
 	static List<String> map(String bedrockPath) {
+		// Standard Bedrock armor atlases share Java's humanoid UV layout. Do not
+		// alias leather: its dye masks need conversion, not a filename-only copy.
+		for (String material : List.of("chain", "diamond", "gold", "iron", "netherite")) {
+			String javaMaterial = material.equals("chain") ? "chainmail" : material;
+			for (int layer = 1; layer <= 2; layer++) {
+				if (bedrockPath.equals("textures/models/armor/" + material + "_" + layer + ".png")) {
+					return List.of("textures/entity/equipment/"
+						+ (layer == 1 ? "humanoid/" : "humanoid_leggings/") + javaMaterial + ".png");
+				}
+			}
+		}
 		List<String> mapped = BEDROCK_TO_JAVA.get(bedrockPath);
 		if (mapped != null) return mapped;
 		if (bedrockPath.startsWith("textures/blocks/")) {

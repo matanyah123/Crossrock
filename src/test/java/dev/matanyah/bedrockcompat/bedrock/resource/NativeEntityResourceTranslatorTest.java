@@ -5,6 +5,16 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class NativeEntityResourceTranslatorTest {
+    @Test void attachableAndEntityIdentifiersCannotOverwriteEachOther() {
+        var source=JsonParser.parseString("""
+            {"minecraft:attachable":{"description":{"identifier":"example:shared"}},
+             "minecraft:client_entity":{"description":{"identifier":"example:shared"}}}
+            """).getAsJsonObject();
+        var definitions=NativeEntityResourceTranslator.definitions(source);
+        assertEquals(2,definitions.size());
+        assertTrue(definitions.containsKey("attachable.example:shared"));
+        assertTrue(definitions.containsKey("example:shared"));
+    }
     @Test void legacyInheritanceIsPublishedUnderCanonicalChildIdentifierWithoutMutatingSource() {
         var source=JsonParser.parseString("""
             {"format_version":"1.8.0","geometry.child:geometry.base":{"bones":[{"name":"hat","neverRender":false}]}}

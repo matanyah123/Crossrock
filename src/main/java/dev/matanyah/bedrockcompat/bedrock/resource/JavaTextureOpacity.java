@@ -17,6 +17,7 @@ final class JavaTextureOpacity {
 	}
 
 	static byte[] conformToVanilla(String javaPath, byte[] png) {
+		if (javaPath.equals("textures/block/grass_block_side_overlay.png")) return grassOverlay(png);
 		if (!javaPath.startsWith("textures/") || !javaPath.endsWith(".png")
 			|| !VANILLA_OPACITY.computeIfAbsent(javaPath, JavaTextureOpacity::isVanillaOpaque)) return png;
 		try {
@@ -42,6 +43,23 @@ final class JavaTextureOpacity {
 		} catch (IOException | RuntimeException ignored) {
 			return png;
 		}
+	}
+
+	/** Bedrock grass alpha is a tint mask: alpha=1 dirt is visible but untinted.
+	 * Java needs that dirt on the opaque base, never in its tinted cutout layer. */
+	private static byte[] grassOverlay(byte[] png) {
+		try {
+			BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
+			if (image == null) return png;
+			for (int y=0;y<image.getHeight();y++) for (int x=0;x<image.getWidth();x++) {
+				int pixel=image.getRGB(x,y);
+				int alpha=pixel>>>24;
+				image.setRGB(x,y,(Math.max(0,alpha-1)*255/254)<<24|pixel&0xffffff);
+			}
+			try (ByteArrayOutputStream output=new ByteArrayOutputStream()) {
+				ImageIO.write(image,"png",output);return output.toByteArray();
+			}
+		} catch (IOException | RuntimeException ignored) { return png; }
 	}
 
 	private static boolean isVanillaOpaque(String javaPath) {

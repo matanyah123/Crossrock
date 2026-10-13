@@ -42,6 +42,7 @@ public final class BedrockOptionsState {
 
 	public static void setConfiguration(String id, BedrockPackConfiguration configuration) {
 		synchronized (BedrockOptionsState.class) {
+			if (configuration.equals(configurations.get(id))) return;
 			Map<String, BedrockPackConfiguration> changed = new LinkedHashMap<>(configurations);
 			changed.put(id, configuration);
 			configurations = Map.copyOf(changed);
@@ -56,6 +57,7 @@ public final class BedrockOptionsState {
 
 	public static void setSelectedIds(List<String> ids) {
 		synchronized (BedrockOptionsState.class) {
+			if (selectedIds.equals(ids)) return;
 			selectedIds = List.copyOf(ids);
 			persist();
 		}
@@ -66,6 +68,9 @@ public final class BedrockOptionsState {
 		if (store == null) return;
 		try {
 			store.save(selectedIds);
+			// Vanilla rewrites options.txt and discards unknown keys. Restore both
+			// extension records after every vanilla save, not just the pack order.
+			persistConfigurations();
 		} catch (IOException | RuntimeException exception) {
 			BedrockCompat.LOGGER.error("Could not save Bedrock pack selections to options.txt", exception);
 		}

@@ -21,16 +21,18 @@ class NativeEntityReferencePackTest {
                 var entry = entries.nextElement();
                 String name = entry.getName();
                 if (!name.startsWith("__brarchive/") || !name.endsWith(".brarchive")) continue;
-                if (!(name.contains("entity") || name.contains("render_controllers") || name.contains("animation"))) continue;
+                if (!(name.contains("entity") || name.contains("attachables") || name.contains("render_controllers") || name.contains("animation") || name.contains("particles"))) continue;
                 try (var stream = zip.getInputStream(entry)) {
                     BrArchiveReader.visit(stream.readAllBytes(), (source,bytes) -> {
                         var document = JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
                         NativeEntityResourceTranslator.definitions(document).forEach((id,definition) -> {
-                            String type = id.startsWith("geometry.") ? "geometry" : id.startsWith("controller.render.") ? "render" :
+                            String type = id.startsWith("particle.") ? "particle" : id.startsWith("attachable.") ? "attachable" : id.startsWith("geometry.") ? "geometry" : id.startsWith("controller.render.") ? "render" :
                                 id.startsWith("controller.animation.") ? "animation_controller" : id.startsWith("animation.") ? "animation" : id.contains(":") ? "entity" : "other";
                             try {
                                 switch (type) {
+                                    case "particle" -> new BedrockParticleEffect(definition);
                                     case "geometry" -> BedrockGeometry.parse(definition);
+                                    case "attachable" -> BedrockAttachable.parse(definition);
                                     case "render" -> new BedrockRenderController(definition);
                                     case "entity" -> BedrockClientEntity.parse(definition);
                                     case "animation" -> new BedrockAnimation(definition);

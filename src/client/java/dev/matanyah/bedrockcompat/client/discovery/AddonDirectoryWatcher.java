@@ -10,7 +10,6 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Stream;
 
 public final class AddonDirectoryWatcher implements AutoCloseable {
 	private static final int MAX_DEPTH = 5;
@@ -35,7 +34,8 @@ public final class AddonDirectoryWatcher implements AutoCloseable {
 				changed = true;
 				if (event.kind() == StandardWatchEventKinds.OVERFLOW || directory == null) continue;
 				Path affected = directory.resolve((Path) event.context());
-				if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE && Files.isDirectory(affected)) registerTree(affected);
+				if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE && Files.isDirectory(affected)
+					&& (!Files.isRegularFile(directory.resolve("manifest.json")) || affected.getFileName().toString().equals("texts"))) registerTree(affected);
 			}
 			if (!key.reset()) directories.remove(key);
 		}
@@ -46,9 +46,18 @@ public final class AddonDirectoryWatcher implements AutoCloseable {
 		int depth = start.equals(root) ? 0 : root.relativize(start).getNameCount();
 		if (depth > MAX_DEPTH) return;
 		int remainingDepth = MAX_DEPTH - depth;
-		try (Stream<Path> paths = Files.walk(start, remainingDepth)) {
-			for (Path directory : paths.filter(Files::isDirectory).toList()) register(directory);
-		}
+		if (remainingDepth == 0) { register(start); return; }
+		Files.walkFileTree(start, java.util.Set.of(), remainingDepth, new java.nio.file.SimpleFileVisitor<>() {
+			@Override public java.nio.file.FileVisitResult preVisitDirectory(Path directory, java.nio.file.attribute.BasicFileAttributes attributes) throws IOException {
+				register(directory);
+				if (Files.isRegularFile(directory.resolve("manifest.json"))) {
+					Path texts = directory.resolve("texts");
+					if (Files.isDirectory(texts)) register(texts);
+					return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+				}
+				return java.nio.file.FileVisitResult.CONTINUE;
+			}
+		});
 	}
 
 	private void register(Path directory) throws IOException {

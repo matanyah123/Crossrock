@@ -17,12 +17,14 @@ public final class NativeEntityResourceTranslator implements BedrockResourceTran
                                     GeneratedResourceSink sink) throws IOException {
         // Buffer by original path first: the selected subpack replaces the entire source document.
         Map<String, byte[]> documents = new LinkedHashMap<>();
+        Map<String, byte[]> eggAssets = new LinkedHashMap<>();
         List<String> failures=new ArrayList<>();
         reader.visitAll(pack, configuration.selectedSubpack(), (path, data) -> {
             String p = path.replace('\\', '/');
-            if (p.endsWith(".json") && (p.startsWith("entity/") || p.startsWith("models/entity/")
+            if(p.equals("textures/item_texture.json")||p.startsWith("textures/")&&(p.endsWith(".png")||p.endsWith(".tga")))eggAssets.put(p,data);
+            if (p.endsWith(".json") && (p.startsWith("entity/") || p.startsWith("attachables/") || p.startsWith("models/entity/")
                     || p.startsWith("animations/") || p.startsWith("animation_controllers/")
-                    || p.startsWith("render_controllers/") || p.equals("models/mobs.json"))) documents.put(p, data);
+                    || p.startsWith("render_controllers/") || p.startsWith("particles/") || p.startsWith("biomes/") || p.equals("models/mobs.json"))) documents.put(p, data);
             if(p.startsWith("materials/")&&p.endsWith(".material"))documents.put(p,data);
             if (p.startsWith("textures/") && p.endsWith(".png") && Identifier.isValidPath(p))
                 sink.put(Identifier.fromNamespaceAndPath("bedrock_native", p), data);
@@ -35,6 +37,9 @@ public final class NativeEntityResourceTranslator implements BedrockResourceTran
         for (var entry : documents.entrySet()) {
             try {
                 JsonObject root = JsonParser.parseString(new String(entry.getValue(), StandardCharsets.UTF_8)).getAsJsonObject();
+                if(root.has("minecraft:client_entity"))try {
+                    BedrockSpawnEgg.translate(root.getAsJsonObject("minecraft:client_entity").getAsJsonObject("description"),eggAssets,sink);
+                } catch(IOException|RuntimeException failure) {failures.add("spawn_egg in "+entry.getKey()+": "+failure.getMessage());}
                 for (var definition : definitions(root).entrySet()) {
                     JsonObject envelope = new JsonObject();
                     envelope.addProperty("source", entry.getKey());
@@ -55,6 +60,15 @@ public final class NativeEntityResourceTranslator implements BedrockResourceTran
 
     public static Map<String, JsonObject> definitions(JsonObject root) {
         Map<String, JsonObject> out = new LinkedHashMap<>();
+        if(root.has("minecraft:biome")) {
+            var biome=root.getAsJsonObject("minecraft:biome");
+            String id=biome.getAsJsonObject("description").get("identifier").getAsString();
+            out.put("biome."+(id.contains(":")?id:"minecraft:"+id),biome);
+        }
+        if(root.has("particle_effect")) {
+            var effect=root.getAsJsonObject("particle_effect");
+            out.put("particle."+effect.getAsJsonObject("description").get("identifier").getAsString(),effect);
+        }
         if(root.has("materials")&&root.get("materials").isJsonObject())
             root.getAsJsonObject("materials").entrySet().forEach(entry-> {
                 if(!entry.getValue().isJsonObject())return;
@@ -66,6 +80,11 @@ public final class NativeEntityResourceTranslator implements BedrockResourceTran
         if (root.has("minecraft:client_entity")) {
             JsonObject value = root.getAsJsonObject("minecraft:client_entity");
             out.put(value.getAsJsonObject("description").get("identifier").getAsString(), value);
+        }
+        if (root.has("minecraft:attachable")) {
+            JsonObject value = root.getAsJsonObject("minecraft:attachable");
+            // Items and entities may share an identifier. Their definition namespaces must not.
+            out.put("attachable." + value.getAsJsonObject("description").get("identifier").getAsString(), value);
         }
         for (String group : List.of("animations", "animation_controllers", "render_controllers")) {
             if (root.has(group)) root.getAsJsonObject(group).entrySet().forEach(e -> out.put(e.getKey(), e.getValue().getAsJsonObject()));

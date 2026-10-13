@@ -17,6 +17,8 @@ import java.util.Map;
 
 /** Translates Bedrock vanilla sound replacements into Java sound events and virtual OGG resources. */
 public final class VanillaSoundTranslator implements BedrockResourceTranslator {
+	/** Java fallbacks for a Bedrock level event with no imported sound override. */
+	public static List<String> particleEventFallbacks(String event) { return SoundEventMappings.javaEvents(event); }
 	private final BedrockPackContentReader reader;
 
 	public VanillaSoundTranslator(BedrockPackContentReader reader) {
@@ -36,6 +38,17 @@ public final class VanillaSoundTranslator implements BedrockResourceTranslator {
         JsonObject nativeEvents=new JsonObject();
         converted.forEach((name,definition)->nativeEvents.add(
             dev.matanyah.bedrockcompat.bedrock.entity.NativeSoundEvents.id(name).getPath(),definition.deepCopy()));
+        // Particle sound_effect names refer to level events, not necessarily definition IDs.
+        byte[] metadata=content.get("sounds.json");
+        if(metadata!=null)try {
+            var root=JsonParser.parseString(new String(metadata,StandardCharsets.UTF_8)).getAsJsonObject();
+            var events=object(object(root,"individual_event_sounds"),"events");
+            if(events!=null)for(var event:events.entrySet())addReference(nativeEvents,
+                List.of(dev.matanyah.bedrockcompat.bedrock.entity.NativeSoundEvents.id(event.getKey()).getPath()),event.getValue(),converted);
+            var named=object(root,"individual_named_sounds");
+            if(named!=null)for(var event:named.entrySet())addReference(nativeEvents,
+                List.of(dev.matanyah.bedrockcompat.bedrock.entity.NativeSoundEvents.id(event.getKey()).getPath()),event.getValue(),converted);
+        } catch(RuntimeException exception){throw new IOException("Invalid sounds.json",exception);}
         if(!nativeEvents.isEmpty())sink.put(Identifier.fromNamespaceAndPath("bedrock_native","sounds.json"),
             nativeEvents.toString().getBytes(StandardCharsets.UTF_8));
 		JsonObject javaEvents = new JsonObject();
@@ -186,8 +199,13 @@ public final class VanillaSoundTranslator implements BedrockResourceTranslator {
 			}
 			if(definition==null)continue;
 			JsonObject adjusted=definition.deepCopy();
-			if(options!=null)for(JsonElement entry:adjusted.getAsJsonArray("sounds")) {
+			if(options!=null)for(int i=0;i<adjusted.getAsJsonArray("sounds").size();i++) {
+				JsonElement entry=adjusted.getAsJsonArray("sounds").get(i);
 				// Context gains multiply definition gains, rather than replacing them.
+				if(entry.isJsonPrimitive()&&(options.has("volume")||options.has("pitch"))) {
+					JsonObject expanded=new JsonObject();expanded.add("name",entry);
+					adjusted.getAsJsonArray("sounds").set(i,expanded);entry=expanded;
+				}
 				if(!entry.isJsonObject())continue;
 				for(String field:List.of("volume","pitch"))if(options.has(field)&&options.get(field).isJsonPrimitive()
 					&&options.getAsJsonPrimitive(field).isNumber()) {

@@ -3,6 +3,7 @@ package dev.matanyah.bedrockcompat.client.entity;
 import com.google.gson.*;
 import dev.matanyah.bedrockcompat.BedrockCompat;
 import dev.matanyah.bedrockcompat.bedrock.entity.BedrockGeometry;
+import dev.matanyah.bedrockcompat.bedrock.entity.BedrockBiomes;
 import dev.matanyah.bedrockcompat.bedrock.entity.BedrockRenderController;
 import dev.matanyah.bedrockcompat.bedrock.entity.BedrockClientEntity;
 import dev.matanyah.bedrockcompat.bedrock.entity.BedrockAnimation;
@@ -25,9 +26,11 @@ public final class NativeEntityResources implements SimpleSynchronousResourceRel
                            Map<String,BedrockClientEntity> entities, Map<String,BedrockAnimation> animations,
                            Map<String,BedrockAnimationController> animationControllers, Set<Identifier> textures,
                            EntityPackPriority priority,dev.matanyah.bedrockcompat.bedrock.entity.BedrockMaterials materials,
-                           Map<String,Map<String,Object>> packSettings,List<String> errors) {}
+                           Map<String,Map<String,Object>> packSettings,List<String> errors,
+                           Map<String,dev.matanyah.bedrockcompat.bedrock.entity.BedrockAttachable> attachables,
+                           Map<String,Set<String>> biomeTags) {}
     private static volatile Snapshot snapshot = new Snapshot(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Set.of(),
-        new EntityPackPriority(VirtualCompatibilityPackProvider.PACK_ID,Map.of(),Map.of()),new dev.matanyah.bedrockcompat.bedrock.entity.BedrockMaterials(Map.of()),Map.of(),List.of());
+        new EntityPackPriority(VirtualCompatibilityPackProvider.PACK_ID,Map.of(),Map.of()),new dev.matanyah.bedrockcompat.bedrock.entity.BedrockMaterials(Map.of()),Map.of(),List.of(),Map.of(),Map.of());
     private static final Set<String> runtimeErrors = Collections.synchronizedSet(new LinkedHashSet<>());
     public static Snapshot snapshot() { return snapshot; }
     public static Optional<JsonObject> definition(String id) {
@@ -63,6 +66,7 @@ public final class NativeEntityResources implements SimpleSynchronousResourceRel
         Map<String,Integer> ranks=new LinkedHashMap<>();
         manager.listPacks().forEach(pack->ranks.put(pack.packId(),ranks.size()));
         Map<String,String> javaSources=new HashMap<>();
+        Map<String,String> actorSources=new HashMap<>();
         var loader=net.fabricmc.loader.api.FabricLoader.getInstance();
         boolean optifine=loader.isModLoaded("optifine")||loader.isModLoaded("optifabric");
         List<String> directories=new ArrayList<>(List.of("textures/entity"));
@@ -76,6 +80,7 @@ public final class NativeEntityResources implements SimpleSynchronousResourceRel
                 try(var reader=new InputStreamReader(entry.getValue().open(),StandardCharsets.UTF_8)) {
                     JsonObject envelope=JsonParser.parseReader(reader).getAsJsonObject();
                     next.put(envelope.get("id").getAsString(),envelope.getAsJsonObject("definition").toString());
+                    actorSources.put(envelope.get("id").getAsString(),entry.getValue().sourcePackId());
                     if(envelope.has("pack_settings")) {
                         Map<String,Object> values=new LinkedHashMap<>();
                         envelope.getAsJsonObject("pack_settings").entrySet().forEach(setting-> {
@@ -94,14 +99,37 @@ public final class NativeEntityResources implements SimpleSynchronousResourceRel
         Map<String,BedrockAnimation> animations = new LinkedHashMap<>();
         Map<String,BedrockAnimationController> animationControllers = new LinkedHashMap<>();
         Map<String,JsonObject> materials=new LinkedHashMap<>();
+        Map<String,Set<String>> biomeTags=new LinkedHashMap<>();
+        Map<String,dev.matanyah.bedrockcompat.bedrock.entity.BedrockAttachable> attachables=new LinkedHashMap<>();
         next.forEach((id,json) -> {
             try {
-                if(id.startsWith("material."))materials.put(id.substring(9),JsonParser.parseString(json).getAsJsonObject());
+                if(id.startsWith("biome.")) {
+                    var biome=JsonParser.parseString(json).getAsJsonObject();
+                    var components=biome.getAsJsonObject("components");
+                    if(components!=null&&components.has("minecraft:tags")) {
+                        var tags=components.get("minecraft:tags");
+                        if(tags.isJsonObject())tags=tags.getAsJsonObject().get("tags");
+                        var values=new HashSet<String>();
+                        if(tags!=null)tags.getAsJsonArray().forEach(tag->values.add(tag.getAsString()));
+                        biomeTags.put(BedrockBiomes.identifier(id.substring(6)),Set.copyOf(values));
+                    }
+                }
+                else if(id.startsWith("particle.")) { /* Loaded by the particle runtime at this same reload boundary. */ }
+                else if(id.startsWith("attachable."))attachables.put(id.substring(11),dev.matanyah.bedrockcompat.bedrock.entity.BedrockAttachable.parse(JsonParser.parseString(json).getAsJsonObject()));
+                else if(id.startsWith("material."))materials.put(id.substring(9),JsonParser.parseString(json).getAsJsonObject());
                 else if (id.startsWith("geometry.")) geometrySources.put(id,JsonParser.parseString(json).getAsJsonObject());
                 else if (id.startsWith("controller.render.")) controllers.put(id, new BedrockRenderController(JsonParser.parseString(json).getAsJsonObject()));
                 else if (id.startsWith("controller.animation.")) animationControllers.put(id, new BedrockAnimationController(JsonParser.parseString(json).getAsJsonObject()));
                 else if (id.startsWith("animation.")) animations.put(id, new BedrockAnimation(JsonParser.parseString(json).getAsJsonObject()));
-                else if (id.contains(":")) entities.put(id, BedrockClientEntity.parse(JsonParser.parseString(json).getAsJsonObject()));
+                else if (id.contains(":")) {
+                    var source=JsonParser.parseString(json).getAsJsonObject();
+                    entities.put(id, BedrockClientEntity.parse(source));
+                    var description=source.getAsJsonObject("description");
+                    if(description.has("particle_emitters"))failures.add(id+": particle_emitters has no verified runtime semantics; not executed");
+                    var scripts=description.getAsJsonObject("scripts");
+                    if(scripts!=null)for(String field:List.of("should_update_bones_and_effects_offscreen","should_update_effects_offscreen"))
+                        if(scripts.has(field))failures.add(id+": "+field+" is unsupported; animations/effects remain render-driven");
+                }
             } catch (RuntimeException exception) {
                 failures.add(id + ": " + exception.getMessage());
             }
@@ -109,10 +137,14 @@ public final class NativeEntityResources implements SimpleSynchronousResourceRel
         geometries.putAll(dev.matanyah.bedrockcompat.bedrock.entity.BedrockGeometryResolver.resolve(geometrySources,failures::add));
         dev.matanyah.bedrockcompat.bedrock.entity.BedrockPlayerDefaults.geometries(geometries);
         dev.matanyah.bedrockcompat.bedrock.entity.BedrockPlayerDefaults.controllers(controllers);
+        dev.matanyah.bedrockcompat.bedrock.entity.BedrockPlayerDefaults.animations(animations);
+        dev.matanyah.bedrockcompat.client.particle.NativeParticles.reload(next,failures);
+        dev.matanyah.bedrockcompat.client.environment.NativeEnvironment.reload(manager,failures);
         snapshot = new Snapshot(Map.copyOf(next), Map.copyOf(geometries), Map.copyOf(controllers), Map.copyOf(entities),
             Map.copyOf(animations), Map.copyOf(animationControllers), textures,
-            new EntityPackPriority(VirtualCompatibilityPackProvider.PACK_ID,ranks,javaSources),new dev.matanyah.bedrockcompat.bedrock.entity.BedrockMaterials(materials),Map.copyOf(settings),List.copyOf(failures));
+            new EntityPackPriority(VirtualCompatibilityPackProvider.PACK_ID,ranks,javaSources,actorSources),new dev.matanyah.bedrockcompat.bedrock.entity.BedrockMaterials(materials),Map.copyOf(settings),List.copyOf(failures),Collections.unmodifiableMap(attachables),Map.copyOf(biomeTags));
         BedrockCompat.LOGGER.info("Loaded {} native Bedrock entity definitions ({} errors)",next.size(),failures.size());
         failures.forEach(message->BedrockCompat.LOGGER.warn("Native entity resource: {}",message));
+        dev.matanyah.bedrockcompat.client.resource.VirtualCompatibilityPackRuntime.resourceReloadCompleted(failures);
     }
 }

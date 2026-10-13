@@ -9,6 +9,7 @@ public final class Molang {
     public static final class Context {
         private final Map<String, Object> variables = new HashMap<>();
         private final Map<String, Object> temporary = new HashMap<>();
+        private final Set<String> variableParents=new HashSet<>(),temporaryParents=new HashSet<>();
         private Map<String, Object> bindings = Map.of();
         private int bindingDepth;
         private Map<String,Object> queryValues = Map.of();
@@ -19,7 +20,15 @@ public final class Molang {
         private int loopSteps;
         public Context(Queries queries) { this(queries,0); }
         public Context(Queries queries,long seed) { this.queries = Objects.requireNonNull(queries);random=new Random(seed); }
-        public void beginFrame() { temporary.clear();loopSteps=0; }
+        public void beginFrame() { temporary.clear();temporaryParents.clear();loopSteps=0; }
+        /** Independent evaluation snapshot. Particle-event emitters must instead start with a fresh context. */
+        public Context fork() {
+            var child=new Context(queries,random.nextLong());
+            child.variables.putAll(variables);child.temporary.putAll(temporary);
+            child.variableParents.addAll(variableParents);child.temporaryParents.addAll(temporaryParents);
+            child.bindings=bindings;child.queryValues=queryValues;child.entityContexts.putAll(entityContexts);
+            return child;
+        }
         private void loopStep(){if(++loopSteps>16384)throw new IllegalArgumentException("Molang frame loop budget exceeded");}
         public <T> T withThis(double value,java.util.function.Supplier<T> action) {
             double previous=channelValue;channelValue=value;
@@ -37,10 +46,18 @@ public final class Molang {
             bind(values);
             try { return action.get(); } finally { bindings=previous; }
         }
+        public <T> T withAdditionalBindings(Map<String,Object> values,java.util.function.Supplier<T> action) {
+            Map<String,Object> merged=new HashMap<>(bindings);merged.putAll(values);
+            return withBindings(merged,action);
+        }
         public void setVariable(String name, Object value) { variables.put(name.toLowerCase(Locale.ROOT), value); }
         /** Optional value-only owning/other entity context. Never store Minecraft entity objects. */
         public void setEntityContext(String name,Context context) {
             if(context==null)entityContexts.remove(name);else entityContexts.put(name,context);
+        }
+        public <T> T withEntityContext(String name,Context context,java.util.function.Supplier<T> action) {
+            Context previous=entityContexts.get(name);setEntityContext(name,context);
+            try{return action.get();}finally{setEntityContext(name,previous);}
         }
         /** Controller-remapped variables exist only while evaluating that controller. */
         public <T> T withVariables(Map<String,Object> values,java.util.function.Supplier<T> action) {
@@ -59,7 +76,7 @@ public final class Molang {
             try { return action.get(); } finally { queryValues = previous; }
         }
         private Object query(String name, List<Object> args) {
-            return args.isEmpty() && queryValues.containsKey(name) ? queryValues.get(name) : queries.get(name,args);
+            return args.isEmpty() && queryValues.containsKey(name) ? queryValues.get(name) : MolangQueryFunctions.get(name,args,queries);
         }
         private Object evaluateBound(Object selected) {
             if (!(selected instanceof Expression expression)) return selected;
@@ -68,12 +85,16 @@ public final class Molang {
             try { return expression.evaluate(this); } finally { bindingDepth--; }
         }
         public Object variable(String name) { return variables.getOrDefault(name, 0d); }
+        /** Value snapshot for independently ticking child emitters; never share mutable variable scopes. */
+        public Map<String,Object> variables(){return Map.copyOf(variables);}
         private Object get(String name) {
             if (name.startsWith("variable.")) return field(variables,name.substring(9));
             if (name.startsWith("temp.")) return field(temporary,name.substring(5));
             if(name.equals("this"))return channelValue;
-            if(name.startsWith("context."))return entityContexts.get(name.substring(8));
+            if(name.startsWith("context."))return bindings.containsKey(name)?bindings.get(name):entityContexts.get(name.substring(8));
             if (name.startsWith("query.")) return query(name.substring(6), List.of());
+            // Historical animation documentation used this spelling before the query namespace.
+            if (name.equals("global.key_frame_lerp_time")) return query("key_frame_lerp_time",List.of());
             if (name.equals("true")) return 1d;
             if (name.equals("false")) return 0d;
             if (name.equals("math.pi")) return Math.PI;
@@ -91,17 +112,26 @@ public final class Molang {
             return 0d;
         }
         private Object put(String name, Object value) {
-            if (name.startsWith("variable.")) variables.put(name.substring(9), value);
-            else if (name.startsWith("temp.")) temporary.put(name.substring(5), value);
+            value=validValue(value);
+            if (name.startsWith("variable.")) replace(variables,variableParents,name.substring(9),value);
+            else if (name.startsWith("temp.")) replace(temporary,temporaryParents,name.substring(5),value);
             else throw new IllegalArgumentException("Cannot assign Molang reference: " + name);
             return value;
+        }
+        private static void replace(Map<String,Object> scope,Set<String> parents,String key,Object value) {
+            // Replacing a struct also replaces its previously initialized fields.
+            // Otherwise flat zero defaults shadow a fresh bone_orientation_trs map.
+            if(parents.contains(key))scope.keySet().removeIf(existing->existing.startsWith(key+"."));
+            scope.put(key,value);
+            for(int dot=key.indexOf('.');dot>=0;dot=key.indexOf('.',dot+1))parents.add(key.substring(0,dot));
         }
         private Object call(String name, List<Object> args) {
             if (name.startsWith("query.")) return query(name.substring(6), args);
             double a = args.isEmpty() ? 0 : number(args.getFirst());
             double b = args.size() < 2 ? 0 : number(args.get(1));
             double c = args.size() < 3 ? 0 : number(args.get(2));
-            return switch (name) {
+            if(name.startsWith("math.ease_"))return a+(b-a)*MolangEasing.sample(name.substring(10),c);
+            return validValue(switch (name) {
                 case "math.sin" -> Math.sin(Math.toRadians(a));
                 case "math.cos" -> Math.cos(Math.toRadians(a));
                 case "math.abs" -> Math.abs(a);
@@ -114,6 +144,7 @@ public final class Molang {
                 case "math.max" -> Math.max(a,b);
                 case "math.clamp" -> Math.max(b,Math.min(c,a));
                 case "math.lerp" -> a+(b-a)*c;
+                case "math.inverse_lerp" -> a==b?0d:(c-a)/(b-a);
                 case "math.mod" -> b == 0 ? 0d : a%b;
                 case "math.exp" -> Math.exp(a);
                 case "math.ln" -> Math.log(a);
@@ -139,8 +170,11 @@ public final class Molang {
                     yield result;
                 }
                 default -> throw new IllegalArgumentException("Unsupported Molang function: " + name);
-            };
+            });
         }
+    }
+    private static Object validValue(Object value) {
+        return value instanceof Number n&&!Double.isFinite(n.doubleValue())?0d:value;
     }
     public static double number(Object value) { return value instanceof Number n ? n.doubleValue() : 0; }
     public static boolean truth(Object value) { return number(value) != 0; }
@@ -157,7 +191,7 @@ public final class Molang {
         Parser parser = new Parser(source);
         Expression result = parser.sequence(false);
         if (!parser.token.isEmpty()) throw parser.error("Unexpected token");
-        return context -> { try { return result.evaluate(context); } catch (Return value) { return value.value; } };
+        return context -> { try { return validValue(result.evaluate(context)); } catch (Return value) { return validValue(value.value); } };
     }
     private static final class Return extends RuntimeException {
         final Object value;
@@ -206,13 +240,16 @@ public final class Molang {
         void expect(String expected){if(!accept(expected))throw error("Expected "+expected);}
         Expression sequence(boolean block) {
             List<Expression> statements=new ArrayList<>();
+            boolean complex=block;
             while(!token.isEmpty() && !(block && token.equals("}"))) {
-                if(accept(";"))continue;
+                if(accept(";")){complex=true;continue;}
                 if(accept("return")){Expression value=expr(0);statements.add(ctx->{throw new Return(value.evaluate(ctx));});}
                 else statements.add(expr(0));
-                if(!accept(";") && !token.isEmpty() && !(block && token.equals("}")))throw error("Expected semicolon");
+                if(accept(";"))complex=true;
+                else if(!token.isEmpty() && !(block && token.equals("}")))throw error("Expected semicolon");
             }
-            return ctx->{Object value=0d;for(Expression e:statements)value=e.evaluate(ctx);return value;};
+            boolean implicitReturn=!complex&&statements.size()==1;
+            return ctx->{Object value=0d;for(Expression e:statements)value=e.evaluate(ctx);return implicitReturn?value:0d;};
         }
         Expression expr(int precedence) {
             if(++depth>128)throw error("Molang nesting exceeds limit");

@@ -140,8 +140,14 @@ public final class BedrockRenderController {
         String chosenGeometry = withArrays(context, aliases, "geometries", () -> resource(geometry.evaluate(context)));
         List<String> chosenTextures = withArrays(context, aliases, "textures", () ->
             textures.stream().map(e -> resource(e.evaluate(context))).toList());
-        List<Material> chosenMaterials = withArrays(context, aliases, "materials", () -> materials.stream()
-            .map(r -> new Material(r.pattern, resource(r.expression.evaluate(context)))).toList());
+        List<Material> chosenMaterials = withArrays(context, aliases, "materials", () -> {
+            var selected=new ArrayList<Material>();
+            // Bedrock controllers may omit materials, inheriting the entity/attachable default.
+            if(materials.stream().noneMatch(r->r.pattern.equals("*"))&&aliases.containsKey("material.default"))
+                selected.add(new Material("*",resource(aliases.get("material.default"))));
+            materials.forEach(r->selected.add(new Material(r.pattern,resource(r.expression.evaluate(context)))));
+            return List.copyOf(selected);
+        });
         List<Visibility> chosenVisibility = visibility.stream()
             .map(r -> new Visibility(r.pattern, Molang.truth(r.expression.evaluate(context)))).toList();
         Color tint=color.sample(context).overlay(overlay.sample(context));

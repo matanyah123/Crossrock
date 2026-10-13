@@ -5,6 +5,26 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MolangTest {
+    @Test void replacingBoneStructClearsInitializedFieldDefaults() {
+        var ctx=new Molang.Context((q,a)->Map.of("t",Map.of("x",12d)));
+        assertEquals(12d,Molang.compile("v.bone=0;v.bone.t=0;v.bone.t.x=0;v.bone=q.bone_orientation_trs('item');return v.bone.t.x;").evaluate(ctx));
+        assertEquals(0d,Molang.compile("v.bone=0;return v.bone.t.x;").evaluate(ctx));
+    }
+    @Test void invalidMathDoesNotPoisonPersistentAnimationVariables() {
+        var context=new Molang.Context((name,args)->0d);
+        assertEquals(0d,Molang.compile("math.acos(1.00001)").evaluate(context));
+        Molang.compile("v.smooth=math.ln(0); v.smooth=v.smooth+2;").evaluate(context);
+        assertEquals(2d,context.variable("smooth"));
+        Molang.compile("v.smooth=1e300*1e300;").evaluate(context);
+        assertEquals(0d,context.variable("smooth"));
+    }
+    @Test void inverseLerpSupportsReversedRangesAndDegenerateInputs() {
+        var ctx=context("A");
+        assertEquals(.25d,Molang.compile("math.inverse_lerp(10,30,15)").evaluate(ctx));
+        assertEquals(.25d,Molang.compile("math.inverse_lerp(30,10,25)").evaluate(ctx));
+        assertEquals(2d,Molang.compile("math.inverse_lerp(0,10,20)").evaluate(ctx));
+        assertEquals(0d,Molang.compile("math.inverse_lerp(1,1,2)").evaluate(ctx));
+    }
     @Test void loopsAreLazyAndSupportBreakContinueWithFiniteWorkBudget() {
         var context=new Molang.Context((q,a)->0d);
         assertEquals(3d,Molang.compile("v.i=0;loop(10,{v.i=v.i+1;v.i>=3?break;});return v.i;").evaluate(context));
@@ -48,6 +68,15 @@ class MolangTest {
         var script=Molang.compile("v.counter = v.counter + 1; t.tmp = 4; return v.counter;");
         assertEquals(1d,script.evaluate(a));assertEquals(2d,script.evaluate(a));assertEquals(1d,script.evaluate(b));
         a.beginFrame();assertEquals(0d,Molang.compile("t.tmp").evaluate(a));assertEquals(2d,a.variable("counter"));
+    }
+    @Test void sideEffectOnlyScriptsDoNotBecomeAnimationChannelOffsets() {
+        var ctx=new Molang.Context((q,a)->q.equals("vertical_speed")?-20d:0d);
+        assertEquals(0d,Molang.compile("v.fall=math.lerp(v.fall,math.clamp(q.vertical_speed,-20,20),0.08);").evaluate(ctx));
+        assertEquals(-1.6, (double)ctx.variable("fall"),1e-8);
+        assertEquals(0d,Molang.compile("t.x=3;t.y=4;t.x+t.y;").evaluate(ctx));
+        assertEquals(7d,Molang.compile("t.x=3;t.y=4;return t.x+t.y;").evaluate(ctx));
+        assertEquals(7d,Molang.compile("3+4").evaluate(ctx));
+        assertEquals("literal;semicolon",Molang.compile("'literal;semicolon'").evaluate(ctx));
     }
     @Test void branchesShortCircuitAndMathUsesDegrees() {
         assertEquals(7d,Molang.compile("v.missing ?? 7").evaluate(context("A")));

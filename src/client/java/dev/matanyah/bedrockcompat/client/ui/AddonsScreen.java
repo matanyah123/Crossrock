@@ -52,6 +52,7 @@ public final class AddonsScreen extends Screen {
 	private static final Identifier DEFAULT_ICON = Identifier.withDefaultNamespace("textures/misc/unknown_pack.png");
 
 	private final Screen parent;
+	private final ResourcePackTabs tabs;
 	private final BedrockPackRepository repository;
 	private final List<String> selectedIds = new ArrayList<>();
 	private final List<Identifier> textureIds = new ArrayList<>();
@@ -67,29 +68,34 @@ public final class AddonsScreen extends Screen {
 	private int reloadCountdown;
 
 	public AddonsScreen(Screen parent, BedrockPackRepository repository) {
+		this(parent,repository,null);
+	}
+	public AddonsScreen(Screen parent, BedrockPackRepository repository,ResourcePackTabs tabs) {
 		super(Component.translatable("bedrock_compat.screen.title"));
 		this.parent = parent;
+		this.tabs = tabs;
 		this.repository = repository;
 		selectedIds.addAll(BedrockOptionsState.selectedIds());
 	}
 
 	@Override
 	protected void init() {
-		int contentHeight = Math.max(40, height - HEADER_HEIGHT - FOOTER_HEIGHT);
+		int top=tabs==null?0:ResourcePackTabs.HEIGHT;
+		int contentHeight = Math.max(40, height - HEADER_HEIGHT - top - FOOTER_HEIGHT);
 		availableList = addRenderableWidget(new AddonList(minecraft, this, false,
 			Component.translatable("pack.available.title")));
 		selectedList = addRenderableWidget(new AddonList(minecraft, this, true,
 			Component.translatable("pack.selected.title")));
-		availableList.updateSizeAndPosition(LIST_WIDTH, contentHeight, width / 2 - 15 - LIST_WIDTH, HEADER_HEIGHT);
-		selectedList.updateSizeAndPosition(LIST_WIDTH, contentHeight, width / 2 + 15, HEADER_HEIGHT);
+		availableList.updateSizeAndPosition(LIST_WIDTH, contentHeight, width / 2 - 15 - LIST_WIDTH, HEADER_HEIGHT+top);
+		selectedList.updateSizeAndPosition(LIST_WIDTH, contentHeight, width / 2 + 15, HEADER_HEIGHT+top);
 
-		search = addRenderableWidget(new EditBox(font, width / 2 - 100, 43, 200, 15, Component.empty()));
+		search = addRenderableWidget(new EditBox(font, width / 2 - 100, 43+top, 200, 15, Component.empty()));
 		search.setHint(Component.translatable("gui.packSelection.search").withStyle(EditBox.SEARCH_HINT_STYLE));
 		search.setResponder(ignored -> rebuildLists());
 
 		errorsButton = addRenderableWidget(Button.builder(Component.empty(), button ->
 			minecraft.setScreenAndShow(new AddonErrorsScreen(this, diagnostics)))
-			.bounds(width - 106, 6, 100, 20).build());
+			.bounds(width - 106, 6+top, 100, 20).build());
 
 		addRenderableWidget(Button.builder(Component.translatable("pack.openFolder"), button -> openFolder())
 			.tooltip(Tooltip.create(Component.translatable("pack.folderInfo")))
@@ -99,13 +105,17 @@ public final class AddonsScreen extends Screen {
 
 		openWatcher();
 		refresh();
+		if(tabs!=null)addRenderableWidget(tabs.bar(width,true));
 	}
 
 	@Override
 	public void tick() {
 		if (watcher != null) {
 			try {
-				if (watcher.pollForChanges()) reloadCountdown = RELOAD_DELAY_TICKS;
+				if (watcher.pollForChanges()) {
+					VirtualCompatibilityPackRuntime.sourceFilesChanged();
+					reloadCountdown = RELOAD_DELAY_TICKS;
+				}
 			} catch (IOException | RuntimeException exception) {
 				BedrockCompat.LOGGER.warn("Stopped watching the add-ons directory", exception);
 				transientDiagnostics.add(new AddonDiagnostic("Add-ons folder", message(exception), repository.addonsDirectory().toString()));
@@ -118,9 +128,10 @@ public final class AddonsScreen extends Screen {
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
 		super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-		graphics.centeredText(font, title, width / 2, 8, 0xFFFFFFFF);
+		int top=tabs==null?0:ResourcePackTabs.HEIGHT;
+		graphics.centeredText(font, title, width / 2, 8+top, 0xFFFFFFFF);
 		graphics.centeredText(font, Component.translatable("pack.dropInfo").withStyle(ChatFormatting.GRAY),
-			width / 2, 24, 0xFFFFFFFF);
+			width / 2, 24+top, 0xFFFFFFFF);
 	}
 
 	@Override
@@ -135,6 +146,7 @@ public final class AddonsScreen extends Screen {
 	@Override
 	public void onClose() {
 		BedrockOptionsState.setSelectedIds(selectedIds);
+		if(tabs!=null){tabs.close();return;}
 		VirtualCompatibilityPackRuntime.applyPendingChanges();
 		minecraft.setScreenAndShow(parent);
 	}
@@ -178,17 +190,21 @@ public final class AddonsScreen extends Screen {
 		int textureIndex = 0;
 		for (PackLoadResult result : results) {
 			if (result.pack().isEmpty()) {
-				foundDiagnostics.add(new AddonDiagnostic(result.displayName(), result.error().orElse("Unknown parsing error"), source(result)));
 				continue;
 			}
-			BedrockPack pack = result.pack().get();
-			for (String warning : pack.warnings()) foundDiagnostics.add(new AddonDiagnostic(pack.displayName(), warning, source(result)));
 			loadTexture(result, textureIndex++, foundDiagnostics).ifPresent(texture -> texturesByPack.put(selectionId(result), texture));
 		}
-		VirtualCompatibilityPackRuntime.sourceFilesChanged();
 		for (String error : VirtualCompatibilityPackRuntime.generationErrors()) {
 			foundDiagnostics.add(new AddonDiagnostic("Resource translation", error, repository.addonsDirectory().toString()));
 		}
+		// Read cached reload/runtime diagnostics only: opening this screen does not scan or save UI files.
+		for (String error : dev.matanyah.bedrockcompat.client.ui.json.NativeJsonUi.errors()) {
+			foundDiagnostics.add(new AddonDiagnostic("JSON UI execution/fallback", error, repository.addonsDirectory().toString()));
+		}
+		dev.matanyah.bedrockcompat.client.ui.json.NativeJsonUi.dependencies().failures().stream().limit(256).forEach(f ->
+			foundDiagnostics.add(new AddonDiagnostic("JSON UI " + f.stage(), String.join(" -> ", f.chain()) + ": " + f.message(), f.file() + "#" + f.pointer())));
+		dev.matanyah.bedrockcompat.client.ui.json.NativeJsonUi.program().rootFailures().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e ->
+			foundDiagnostics.add(new AddonDiagnostic("JSON UI compilation", e.getValue(), e.getKey())));
 		diagnostics = List.copyOf(foundDiagnostics);
 		errorsButton.visible = !diagnostics.isEmpty();
 		errorsButton.active = !diagnostics.isEmpty();
@@ -280,7 +296,6 @@ public final class AddonsScreen extends Screen {
 		} catch (IOException | RuntimeException exception) {
 			if (texture != null) texture.close();
 			else if (image != null) image.close();
-			BedrockCompat.LOGGER.warn("Could not decode pack icon for {}", result.source(), exception);
 			foundDiagnostics.add(new AddonDiagnostic(result.displayName(), "Could not decode pack icon: " + message(exception), source(result)));
 			return Optional.empty();
 		}
@@ -304,29 +319,17 @@ public final class AddonsScreen extends Screen {
 	}
 
 	private void copyDroppedPacks(List<Path> sources) {
+		VirtualCompatibilityPackRuntime.sourceFilesChanged();
 		transientDiagnostics.clear();
 		for (Path source : sources) {
 			try {
-				Path target = repository.addonsDirectory().resolve(source.getFileName().toString());
-				if (Files.exists(target)) throw new IOException("A file or folder with this name already exists");
-				if (Files.isDirectory(source)) copyDirectory(source, target);
-				else Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+				dev.matanyah.bedrockcompat.behavior.BedrockPackImporter.copy(source, repository.addonsDirectory());
 			} catch (IOException | RuntimeException exception) {
 				BedrockCompat.LOGGER.warn("Could not copy dropped add-on {}", source, exception);
 				transientDiagnostics.add(new AddonDiagnostic(source.getFileName().toString(), message(exception), source.toString()));
 			}
 		}
 		refresh();
-	}
-
-	private static void copyDirectory(Path source, Path target) throws IOException {
-		try (Stream<Path> paths = Files.walk(source)) {
-			for (Path path : paths.toList()) {
-				Path destination = target.resolve(source.relativize(path).toString());
-				if (Files.isDirectory(path)) Files.createDirectories(destination);
-				else if (Files.isRegularFile(path)) Files.copy(path, destination, StandardCopyOption.COPY_ATTRIBUTES);
-			}
-		}
 	}
 
 	private String selectionId(PackLoadResult result) {

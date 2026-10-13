@@ -1,0 +1,886 @@
+{
+  "acacia_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/acacia_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/acacia_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/acacia_slab_top"
+      }
+    }
+  },
+  "andesite_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/andesite_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/andesite"
+      },
+      "type=top": {
+        "model": "minecraft:block/andesite_slab_top"
+      }
+    }
+  },
+  "bamboo_mosaic_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/bamboo_mosaic_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/bamboo_mosaic"
+      },
+      "type=top": {
+        "model": "minecraft:block/bamboo_mosaic_slab_top"
+      }
+    }
+  },
+  "bamboo_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/bamboo_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/bamboo_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/bamboo_slab_top"
+      }
+    }
+  },
+  "birch_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/birch_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/birch_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/birch_slab_top"
+      }
+    }
+  },
+  "blackstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/blackstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/blackstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/blackstone_slab_top"
+      }
+    }
+  },
+  "brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/brick_slab_top"
+      }
+    }
+  },
+  "cherry_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cherry_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cherry_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/cherry_slab_top"
+      }
+    }
+  },
+  "cinnabar_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cinnabar_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cinnabar_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/cinnabar_brick_slab_top"
+      }
+    }
+  },
+  "cinnabar_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cinnabar_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cinnabar"
+      },
+      "type=top": {
+        "model": "minecraft:block/cinnabar_slab_top"
+      }
+    }
+  },
+  "cobbled_deepslate_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cobbled_deepslate_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cobbled_deepslate"
+      },
+      "type=top": {
+        "model": "minecraft:block/cobbled_deepslate_slab_top"
+      }
+    }
+  },
+  "cobblestone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cobblestone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cobblestone"
+      },
+      "type=top": {
+        "model": "minecraft:block/cobblestone_slab_top"
+      }
+    }
+  },
+  "crimson_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/crimson_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/crimson_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/crimson_slab_top"
+      }
+    }
+  },
+  "cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/cut_copper_slab_top"
+      }
+    }
+  },
+  "cut_red_sandstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cut_red_sandstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cut_red_sandstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/cut_red_sandstone_slab_top"
+      }
+    }
+  },
+  "cut_sandstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cut_sandstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cut_sandstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/cut_sandstone_slab_top"
+      }
+    }
+  },
+  "dark_oak_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/dark_oak_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/dark_oak_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/dark_oak_slab_top"
+      }
+    }
+  },
+  "dark_prismarine_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/dark_prismarine_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/dark_prismarine"
+      },
+      "type=top": {
+        "model": "minecraft:block/dark_prismarine_slab_top"
+      }
+    }
+  },
+  "deepslate_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/deepslate_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/deepslate_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/deepslate_brick_slab_top"
+      }
+    }
+  },
+  "deepslate_tile_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/deepslate_tile_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/deepslate_tiles"
+      },
+      "type=top": {
+        "model": "minecraft:block/deepslate_tile_slab_top"
+      }
+    }
+  },
+  "diorite_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/diorite_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/diorite"
+      },
+      "type=top": {
+        "model": "minecraft:block/diorite_slab_top"
+      }
+    }
+  },
+  "end_stone_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/end_stone_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/end_stone_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/end_stone_brick_slab_top"
+      }
+    }
+  },
+  "exposed_cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/exposed_cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/exposed_cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/exposed_cut_copper_slab_top"
+      }
+    }
+  },
+  "granite_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/granite_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/granite"
+      },
+      "type=top": {
+        "model": "minecraft:block/granite_slab_top"
+      }
+    }
+  },
+  "jungle_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/jungle_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/jungle_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/jungle_slab_top"
+      }
+    }
+  },
+  "mangrove_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/mangrove_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/mangrove_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/mangrove_slab_top"
+      }
+    }
+  },
+  "mossy_cobblestone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/mossy_cobblestone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/mossy_cobblestone"
+      },
+      "type=top": {
+        "model": "minecraft:block/mossy_cobblestone_slab_top"
+      }
+    }
+  },
+  "mossy_stone_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/mossy_stone_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/mossy_stone_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/mossy_stone_brick_slab_top"
+      }
+    }
+  },
+  "mud_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/mud_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/mud_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/mud_brick_slab_top"
+      }
+    }
+  },
+  "nether_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/nether_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/nether_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/nether_brick_slab_top"
+      }
+    }
+  },
+  "oak_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/oak_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/oak_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/oak_slab_top"
+      }
+    }
+  },
+  "oxidized_cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/oxidized_cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/oxidized_cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/oxidized_cut_copper_slab_top"
+      }
+    }
+  },
+  "pale_oak_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/pale_oak_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/pale_oak_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/pale_oak_slab_top"
+      }
+    }
+  },
+  "petrified_oak_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/petrified_oak_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/oak_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/petrified_oak_slab_top"
+      }
+    }
+  },
+  "polished_andesite_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_andesite_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_andesite"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_andesite_slab_top"
+      }
+    }
+  },
+  "polished_blackstone_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_blackstone_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_blackstone_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_blackstone_brick_slab_top"
+      }
+    }
+  },
+  "polished_blackstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_blackstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_blackstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_blackstone_slab_top"
+      }
+    }
+  },
+  "polished_cinnabar_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_cinnabar_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_cinnabar"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_cinnabar_slab_top"
+      }
+    }
+  },
+  "polished_deepslate_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_deepslate_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_deepslate"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_deepslate_slab_top"
+      }
+    }
+  },
+  "polished_diorite_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_diorite_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_diorite"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_diorite_slab_top"
+      }
+    }
+  },
+  "polished_granite_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_granite_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_granite"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_granite_slab_top"
+      }
+    }
+  },
+  "polished_sulfur_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_sulfur_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_sulfur"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_sulfur_slab_top"
+      }
+    }
+  },
+  "polished_tuff_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/polished_tuff_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/polished_tuff"
+      },
+      "type=top": {
+        "model": "minecraft:block/polished_tuff_slab_top"
+      }
+    }
+  },
+  "prismarine_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/prismarine_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/prismarine_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/prismarine_brick_slab_top"
+      }
+    }
+  },
+  "prismarine_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/prismarine_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/prismarine"
+      },
+      "type=top": {
+        "model": "minecraft:block/prismarine_slab_top"
+      }
+    }
+  },
+  "purpur_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/purpur_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/purpur_block"
+      },
+      "type=top": {
+        "model": "minecraft:block/purpur_slab_top"
+      }
+    }
+  },
+  "quartz_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/quartz_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/quartz_block"
+      },
+      "type=top": {
+        "model": "minecraft:block/quartz_slab_top"
+      }
+    }
+  },
+  "red_nether_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/red_nether_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/red_nether_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/red_nether_brick_slab_top"
+      }
+    }
+  },
+  "red_sandstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/red_sandstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/red_sandstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/red_sandstone_slab_top"
+      }
+    }
+  },
+  "resin_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/resin_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/resin_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/resin_brick_slab_top"
+      }
+    }
+  },
+  "sandstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/sandstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/sandstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/sandstone_slab_top"
+      }
+    }
+  },
+  "smooth_quartz_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/smooth_quartz_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/smooth_quartz"
+      },
+      "type=top": {
+        "model": "minecraft:block/smooth_quartz_slab_top"
+      }
+    }
+  },
+  "smooth_red_sandstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/smooth_red_sandstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/smooth_red_sandstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/smooth_red_sandstone_slab_top"
+      }
+    }
+  },
+  "smooth_sandstone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/smooth_sandstone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/smooth_sandstone"
+      },
+      "type=top": {
+        "model": "minecraft:block/smooth_sandstone_slab_top"
+      }
+    }
+  },
+  "smooth_stone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/smooth_stone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/smooth_stone_slab_double"
+      },
+      "type=top": {
+        "model": "minecraft:block/smooth_stone_slab_top"
+      }
+    }
+  },
+  "spruce_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/spruce_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/spruce_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/spruce_slab_top"
+      }
+    }
+  },
+  "stone_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/stone_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/stone_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/stone_brick_slab_top"
+      }
+    }
+  },
+  "stone_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/stone_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/stone"
+      },
+      "type=top": {
+        "model": "minecraft:block/stone_slab_top"
+      }
+    }
+  },
+  "sulfur_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/sulfur_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/sulfur_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/sulfur_brick_slab_top"
+      }
+    }
+  },
+  "sulfur_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/sulfur_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/sulfur"
+      },
+      "type=top": {
+        "model": "minecraft:block/sulfur_slab_top"
+      }
+    }
+  },
+  "tuff_brick_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/tuff_brick_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/tuff_bricks"
+      },
+      "type=top": {
+        "model": "minecraft:block/tuff_brick_slab_top"
+      }
+    }
+  },
+  "tuff_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/tuff_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/tuff"
+      },
+      "type=top": {
+        "model": "minecraft:block/tuff_slab_top"
+      }
+    }
+  },
+  "warped_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/warped_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/warped_planks"
+      },
+      "type=top": {
+        "model": "minecraft:block/warped_slab_top"
+      }
+    }
+  },
+  "waxed_cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/cut_copper_slab_top"
+      }
+    }
+  },
+  "waxed_exposed_cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/exposed_cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/exposed_cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/exposed_cut_copper_slab_top"
+      }
+    }
+  },
+  "waxed_oxidized_cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/oxidized_cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/oxidized_cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/oxidized_cut_copper_slab_top"
+      }
+    }
+  },
+  "waxed_weathered_cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/weathered_cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/weathered_cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/weathered_cut_copper_slab_top"
+      }
+    }
+  },
+  "weathered_cut_copper_slab": {
+    "variants": {
+      "type=bottom": {
+        "model": "minecraft:block/weathered_cut_copper_slab"
+      },
+      "type=double": {
+        "model": "minecraft:block/weathered_cut_copper"
+      },
+      "type=top": {
+        "model": "minecraft:block/weathered_cut_copper_slab_top"
+      }
+    }
+  }
+}

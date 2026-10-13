@@ -13,8 +13,10 @@ public final class BedrockEntityInstance {
     private Frame lastFrame;
     private final List<BedrockEntityEffect> pendingEffects=new ArrayList<>();
     private Map<String,BedrockAnimation.Pose> basePose=Map.of(),previousPose=Map.of();
+    private Map<String,BedrockGeometry> bindSources=Map.of();
     private Map<String,BedrockGeometry.Bone> bones=Map.of();
     private Map<String,org.joml.Matrix4f> previousAnchors=Map.of();
+    private Map<String,org.joml.Matrix4f> queryBindings=Map.of();
     private final Map<String,AnimationNode> animationStates = new HashMap<>();
     public record Frame(List<BedrockRenderController.Selection> selections, Map<String,BedrockAnimation.Pose> poses,
                         List<BedrockEntityEffect> effects,BedrockAnimation.Vector scale,double heldItemScale) {}
@@ -51,15 +53,66 @@ public final class BedrockEntityInstance {
             Map<String,BedrockAnimation> clips,Map<String,BedrockAnimationController> animationControllers,
             OptionalInt armorStandPose,double elapsedSeconds,Map<String,BedrockGeometry> geometries,
             Map<String,Object> engineVariables,Map<String,Object> runtimeAliases) {
+        return evaluateFrame(frameQueries,controllers,clips,animationControllers,armorStandPose,elapsedSeconds,
+            geometries,engineVariables,runtimeAliases,ignored->{});
+    }
+    /** Equipment setup runs after the holder refreshes its inputs, before animation/controller selection. */
+    public Frame evaluateFrame(Molang.Queries frameQueries, Map<String,BedrockRenderController> controllers,
+            Map<String,BedrockAnimation> clips,Map<String,BedrockAnimationController> animationControllers,
+            OptionalInt armorStandPose,double elapsedSeconds,Map<String,BedrockGeometry> geometries,
+            Map<String,Object> engineVariables,Map<String,Object> runtimeAliases,
+            java.util.function.Consumer<Molang.Context> equipmentSetup) {
         // Input providers are transient overlays. Removing one must not leave its last
         // morph/emote value in the entity's persistent pack-script variable dictionary.
-        return context.withVariables(engineVariables,()->evaluateFrameBound(frameQueries,controllers,clips,
-            animationControllers,armorStandPose,elapsedSeconds,geometries,engineVariables,runtimeAliases));
+        try {
+            return context.withVariables(engineVariables,()->evaluateFrameBound(frameQueries,controllers,clips,
+                animationControllers,armorStandPose,elapsedSeconds,geometries,engineVariables,runtimeAliases,equipmentSetup));
+        } finally {
+            // Frame query adapters may close over a live Minecraft entity/world. Retaining one
+            // in a weak-key instance cache would keep its own key alive indefinitely.
+            queries=null;
+        }
+    }
+    /** Scoped access for attachables; never retain a frame provider or a live owning entity. */
+    public <T> T withContext(Molang.Queries frameQueries,java.util.function.Function<Molang.Context,T> action) {
+        var previous=queries;queries=frameQueries;
+        try{return action.apply(context);}finally{queries=previous;}
+    }
+    public <T> T withOwner(Molang.Context owner,java.util.function.Supplier<T> action) {
+        return context.withEntityContext("owning_entity",owner,action);
+    }
+    /** Public-only value snapshot for external actor references. No live entity/query closures escape. */
+    public Molang.Context publicContext() {
+        var snapshot=new Molang.Context((name,args)->{throw new IllegalArgumentException("Actor snapshot has no query provider: "+name);});
+        for(String name:definition.publicVariables())snapshot.setVariable(name,context.variable(name));
+        return snapshot;
+    }
+    /** Legacy client-entity locator positions are authored in model space, not relative to a pivot. */
+    public Map<String,org.joml.Matrix4f> anchors(BedrockGeometry geometry,Map<String,BedrockAnimation.Pose> poses) {
+        return anchors(geometry,poses,Map.of());
+    }
+    private Map<String,org.joml.Matrix4f> anchors(BedrockGeometry geometry,Map<String,BedrockAnimation.Pose> poses,Map<String,org.joml.Matrix4f> bindings) {
+        var anchors=new HashMap<>(BedrockGeometryMesh.anchors(geometry,poses,bindings));
+        for(var locator:definition.locators()) {
+            var bone=geometry.bones().stream().filter(b->b.name().equals(locator.bone())).findFirst().orElse(null);
+            var anchor=anchors.get(locator.bone());
+            if(bone==null||anchor==null){diagnostics.accept("Missing locator bone: "+locator.bone());continue;}
+            var p=locator.offset();var pivot=bone.pivot();
+            anchors.put(locator.name(),new org.joml.Matrix4f(anchor).translate(
+                (float)(p.x()-pivot.x()),(float)(p.y()-pivot.y()),(float)(p.z()-pivot.z())));
+        }
+        return Map.copyOf(anchors);
+    }
+    /** Attachable physics reads its bones in the same bound model space used for drawing. */
+    public <T> T withBindings(Map<String,org.joml.Matrix4f> bindings,java.util.function.Supplier<T> action) {
+        var previous=queryBindings;queryBindings=bindings;
+        try{return action.get();}finally{queryBindings=previous;}
     }
     private Frame evaluateFrameBound(Molang.Queries frameQueries,Map<String,BedrockRenderController> controllers,
             Map<String,BedrockAnimation> clips,Map<String,BedrockAnimationController> animationControllers,
             OptionalInt armorStandPose,double elapsedSeconds,Map<String,BedrockGeometry> geometries,
-            Map<String,Object> engineVariables,Map<String,Object> runtimeAliases) {
+            Map<String,Object> engineVariables,Map<String,Object> runtimeAliases,
+            java.util.function.Consumer<Molang.Context> equipmentSetup) {
         // Minecraft may extract the same entity again with an older partial tick (outline/UI/test passes).
         // Never rewind clocks, repeat pre-animation side effects, or dispatch an entry effect twice.
         if(lastFrame!=null&&elapsedSeconds<=lastTime)return new Frame(lastFrame.selections,lastFrame.poses,List.of(),lastFrame.scale,lastFrame.heldItemScale);
@@ -67,15 +120,24 @@ public final class BedrockEntityInstance {
         Map<String,Object> aliases=new LinkedHashMap<>(definition.aliases());aliases.putAll(runtimeAliases);
         Object defaultGeometry=aliases.get("geometry."+definition.queryableGeometry());
         var geometry=defaultGeometry instanceof String identifier?geometries.get(identifier):null;
-        if(geometry!=null) {
-            Map<String,BedrockAnimation.Pose> defaults=new HashMap<>();Map<String,BedrockGeometry.Bone> byName=new HashMap<>();
-            for(var bone:geometry.bones()) {
-                var rotation=bone.rotation();byName.put(bone.name(),bone);
-                defaults.put(bone.name(),new BedrockAnimation.Pose(new BedrockAnimation.Vector(0,0,0),
-                    new BedrockAnimation.Vector(rotation.x(),rotation.y(),rotation.z()),new BedrockAnimation.Vector(1,1,1)));
+        Map<String,BedrockGeometry> sources=new TreeMap<>();
+        // Extra render layers can supply animation helper bones absent from the
+        // queryable mesh. Keep the main skeleton authoritative for shared names.
+        aliases.forEach((key,value)->{
+            if(key.startsWith("geometry.")&&value instanceof String id&&geometries.get(id) instanceof BedrockGeometry layer)
+                sources.put(key,layer);
+        });
+        if(!sources.equals(bindSources)) {
+            Map<String,BedrockAnimation.Pose> defaults=new HashMap<>();
+            Map<String,BedrockGeometry.Bone> byName=new HashMap<>();
+            previousAnchors=Map.of();
+            if(geometry!=null) {
+                addBindPose(defaults,geometry);
+                for(var bone:geometry.bones())byName.put(bone.name(),bone);
+                previousAnchors=anchors(geometry,Map.of(),queryBindings);
             }
-            basePose=Map.copyOf(defaults);bones=Map.copyOf(byName);
-            if(previousAnchors.isEmpty())previousAnchors=BedrockGeometryMesh.anchors(geometry,Map.of());
+            sources.values().forEach(layer->addBindPose(defaults,layer));
+            basePose=Map.copyOf(defaults);bones=Map.copyOf(byName);bindSources=Map.copyOf(sources);
         }
         queries = Objects.requireNonNull(frameQueries);
         context.beginFrame();
@@ -89,12 +151,16 @@ public final class BedrockEntityInstance {
         // Pack initialize scripts may set a default; the synchronized pose is authoritative thereafter.
         if (armorStandPose.isPresent()) context.setVariable("armor_stand.pose_index", (double)armorStandPose.getAsInt());
         for (Molang.Expression expression : definition.preAnimation()) expression.evaluate(context);
+        equipmentSetup.accept(context);
+        if(geometry!=null&&!queryBindings.isEmpty())
+            previousAnchors=anchors(geometry,lastFrame==null?Map.of():lastFrame.poses(),queryBindings);
         Map<String,BedrockAnimation.Pose> poses = new LinkedHashMap<>();
         for (var animation : definition.animate()) {
             double weight = Molang.number(animation.weight().evaluate(context));
             if (!Double.isFinite(weight)) throw new IllegalArgumentException("Non-finite animation blend weight");
-            if(weight==0&&!clips.containsKey(animationId(animation.alias()))&&!animationControllers.containsKey(animationId(animation.alias())))continue;
-            String id = animationId(animation.alias());
+            if(weight==0)continue;
+            String id = definition.animationAliases().get(animation.alias());
+            if(id==null){diagnostics.accept("Missing entity animation alias: "+animation.alias()+" (other animations remain active)");continue;}
             if(!clips.containsKey(id)&&!animationControllers.containsKey(id)) {
                 diagnostics.accept("Missing animation definition: "+id+" (other animations remain active)");continue;
             }
@@ -120,7 +186,7 @@ public final class BedrockEntityInstance {
         if(!Double.isFinite(heldItemScale))throw new IllegalArgumentException("Non-finite held-item scale");
         lastFrame=new Frame(List.copyOf(selections),Map.copyOf(poses),List.copyOf(pendingEffects),scale,heldItemScale);
         previousPose=compose(basePose,poses);
-        if(geometry!=null)previousAnchors=BedrockGeometryMesh.anchors(geometry,poses);
+        if(geometry!=null)previousAnchors=anchors(geometry,poses,queryBindings);
         return lastFrame;
     }
     private Object boneQuery(String name,List<Object> args) {
@@ -154,6 +220,20 @@ public final class BedrockEntityInstance {
         return queries.get(name,args);
     }
     private static Map<String,Double> vector(BedrockAnimation.Vector v){return Map.of("x",v.x(),"y",v.y(),"z",v.z());}
+    private static void addBindPose(Map<String,BedrockAnimation.Pose> defaults,BedrockGeometry geometry) {
+        Map<String,BedrockGeometry.Bone> byName=new HashMap<>();
+        for(var bone:geometry.bones())byName.put(bone.name(),bone);
+        for(var bone:geometry.bones()) {
+            var pivot=bone.pivot();var parent=byName.get(bone.parent());
+            var origin=parent==null?BedrockGeometry.Vec.ZERO:parent.pivot();var rotation=bone.rotation();
+            // Molang `this` reads the local transform INCLUDING the bind translation.
+            // Rendered poses remain deltas; adding these origins to them would move
+            // the geometry twice. In particular, paired helper bones need distinct X.
+            defaults.putIfAbsent(bone.name(),new BedrockAnimation.Pose(
+                new BedrockAnimation.Vector(pivot.x()-origin.x(),pivot.y()-origin.y(),pivot.z()-origin.z()),
+                new BedrockAnimation.Vector(rotation.x(),rotation.y(),rotation.z()),new BedrockAnimation.Vector(1,1,1)));
+        }
+    }
     private static Map<String,BedrockAnimation.Pose> compose(Map<String,BedrockAnimation.Pose> base,Map<String,BedrockAnimation.Pose> added) {
         Map<String,BedrockAnimation.Pose> result=new HashMap<>(base);BedrockAnimationController.accumulate(result,added,1);return Map.copyOf(result);
     }
@@ -180,9 +260,9 @@ public final class BedrockEntityInstance {
             if(controller==null) {
                 BedrockAnimation clip=clips.get(id);
                 return clipRuntime.sample(time,context,clip.overridesPrevious()?basePose:currentPose,
-                    effect->{if(effectsEnabled)effect(effect);});
+                    effect->{if(effectsEnabled)effect(effect);},frameDelta());
             }
-            return controller.sampleContextual(time,context,(alias,elapsed,ctx,preceding,weight)-> {
+            return controller.sampleHierarchical(time,context,(alias,elapsed,ctx,preceding,weight)-> {
                 // Every state entry owns fresh child clocks, including re-entry into the same state.
                 if(childEpoch!=controller.stateEpoch()){children.clear();childEpoch=controller.stateEpoch();}
                 String childId=animationId(alias);
@@ -191,14 +271,23 @@ public final class BedrockEntityInstance {
                     return new BedrockAnimationController.Sample(Map.of(),false);
                 }
                 var child=children.computeIfAbsent(alias,key->new AnimationNode(animationId(alias),clips,controllers));
-                return child.sample(elapsed,clips,controllers,depth+1,compose(currentPose,preceding),effectsEnabled&&weight!=0);
+                Map<String,BedrockAnimation.Pose> inherited=new HashMap<>(currentPose);
+                for(String replaced:preceding.replacedBones()) {
+                    var bind=basePose.get(replaced);
+                    if(bind==null)inherited.remove(replaced);else inherited.put(replaced,bind);
+                }
+                return child.sample(elapsed,clips,controllers,depth+1,compose(inherited,preceding.poses()),effectsEnabled&&weight!=0);
             },effect->{if(effectsEnabled)effect(effect);});
         }
+    }
+    private double frameDelta() {
+        try{return Molang.number(queries.get("delta_time",List.of()));}
+        catch(IllegalArgumentException unsupported){return Double.NaN;}
     }
     private void effect(BedrockEntityEffect effect) {
         String prefix=effect.kind()==BedrockEntityEffect.Kind.SOUND?"sound.":"particle.";
         Object resolved=definition.aliases().get(prefix+effect.effect().toLowerCase(Locale.ROOT));
         if(!(resolved instanceof String name)){diagnostics.accept("Missing entity effect alias: "+prefix+effect.effect());return;}
-        pendingEffects.add(new BedrockEntityEffect(effect.kind(),name,effect.locator()));
+        pendingEffects.add(new BedrockEntityEffect(effect.kind(),name,effect.locator(),effect.preEffectScript(),effect.bindToActor(),effect.managed()));
     }
 }

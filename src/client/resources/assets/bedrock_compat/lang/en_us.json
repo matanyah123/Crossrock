@@ -1,4 +1,6 @@
 {
+  "bedrock_compat.tab.java": "Java Packs",
+  "bedrock_compat.tab.bedrock": "Bedrock Packs",
   "bedrock_compat.title.addons": "Add-ons",
   "bedrock_compat.screen.title": "Crossrock Add-ons",
   "bedrock_compat.open_folder": "Open Add-ons Folder",

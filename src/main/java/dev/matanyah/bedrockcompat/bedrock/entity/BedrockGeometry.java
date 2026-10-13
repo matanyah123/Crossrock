@@ -28,8 +28,18 @@ public record BedrockGeometry(int textureWidth, int textureHeight, List<Bone> bo
     public record Locator(Vec offset, Vec rotation, boolean ignoreInheritedScale) {}
     public record MeshVertex(Vec position, Vec normal, double u, double v) {}
     public record Polygon(List<MeshVertex> vertices) {}
+    public record TextureMesh(String texture,Vec position,Vec localPivot,Vec rotation,Vec scale,boolean pixelDepth) {}
     public record Bone(String name, String parent, Vec pivot, Vec rotation,
-                       List<Cube> cubes, Map<String, Locator> locators, List<Polygon> polygons, boolean neverRender) {
+                       List<Cube> cubes, Map<String, Locator> locators, List<Polygon> polygons, boolean neverRender,
+                       Molang.Expression binding,List<TextureMesh> textureMeshes) {
+        public Bone(String name, String parent, Vec pivot, Vec rotation,
+                    List<Cube> cubes, Map<String, Locator> locators, List<Polygon> polygons, boolean neverRender,Molang.Expression binding) {
+            this(name,parent,pivot,rotation,cubes,locators,polygons,neverRender,binding,List.of());
+        }
+        public Bone(String name, String parent, Vec pivot, Vec rotation,
+                    List<Cube> cubes, Map<String, Locator> locators, List<Polygon> polygons, boolean neverRender) {
+            this(name,parent,pivot,rotation,cubes,locators,polygons,neverRender,null);
+        }
         public Bone(String name, String parent, Vec pivot, Vec rotation,
                     List<Cube> cubes, Map<String, Locator> locators, List<Polygon> polygons) {
             this(name,parent,pivot,rotation,cubes,locators,polygons,false);
@@ -75,10 +85,18 @@ public record BedrockGeometry(int textureWidth, int textureHeight, List<Bone> bo
                         vector(object, "rotation", Vec.ZERO), bool(object, "ignore_inherited_scale", false)));
                 }
             }
+            List<TextureMesh> textureMeshes=new ArrayList<>();
+            if(bone.has("texture_meshes"))for(var element:bone.getAsJsonArray("texture_meshes")) {
+                if(textureMeshes.size()>=256)throw invalid("Too many texture meshes on a bone");
+                var mesh=element.getAsJsonObject();
+                textureMeshes.add(new TextureMesh(mesh.get("texture").getAsString(),vector(mesh,"position",Vec.ZERO),
+                    vector(mesh,"local_pivot",Vec.ZERO),vector(mesh,"rotation",Vec.ZERO),
+                    vector(mesh,"scale",new Vec(1,1,1)),bool(mesh,"use_pixel_depth",false)));
+            }
             bones.put(name, new Bone(name, parent, vector(bone, "pivot", Vec.ZERO),
                 vector(bone, "rotation", Vec.ZERO), List.copyOf(cubes), Map.copyOf(locators),
                 bone.has("poly_mesh") ? polygons(bone.getAsJsonObject("poly_mesh"), width, height, meshBudget) : List.of(),
-                bool(bone,"neverRender",false)));
+                bool(bone,"neverRender",false),bone.has("binding")?Molang.compile(bone.get("binding").getAsString()):null,List.copyOf(textureMeshes)));
         }
         // Validate independently of file order; parents commonly occur after their children.
         Set<String> complete = new HashSet<>();

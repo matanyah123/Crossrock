@@ -29,12 +29,12 @@ public final class VirtualCompatibilityPackProvider {
 		Pack.ResourcesSupplier resources = new Pack.ResourcesSupplier() {
 			@Override
 			public VirtualCompatibilityPackResources openPrimary(PackLocationInfo location) {
-				return new VirtualCompatibilityPackResources(location, VirtualCompatibilityPackRuntime.snapshotForReload());
+				return new VirtualCompatibilityPackResources(location, VirtualCompatibilityPackRuntime.currentSnapshot());
 			}
 
 			@Override
 			public VirtualCompatibilityPackResources openFull(PackLocationInfo location, Pack.Metadata metadata) {
-				return new VirtualCompatibilityPackResources(location, VirtualCompatibilityPackRuntime.snapshotForReload());
+				return new VirtualCompatibilityPackResources(location, VirtualCompatibilityPackRuntime.currentSnapshot());
 			}
 		};
 		Pack.Metadata metadata = new Pack.Metadata(

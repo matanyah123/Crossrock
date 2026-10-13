@@ -14,7 +14,7 @@ final class NativePlayerInputs {
         variables.put("is_first_person",first?1d:0d);
         variables.put("is_paperdoll",view==NativeEntityRenderer.View.UI?1d:0d);
         variables.put("attack_time",(double)player.getAttackAnim(partial));
-        variables.put("player_x_rotation",(double)player.getXRot(partial));
+        variables.put("player_x_rotation",facts.getOrDefault("head_x_rotation",(double)player.getXRot(partial)));
         variables.put("swim_amount",(double)player.getSwimAmount(partial));
         variables.put("gliding_speed_value",player.isFallFlying()?glide:1d);
         variables.put("is_brandishing_spear",player.isUsingItem()&&player.getUseItem().getUseAnimation()==net.minecraft.world.item.ItemUseAnimation.SPEAR?1d:0d);
@@ -27,12 +27,16 @@ final class NativePlayerInputs {
         facts.put("is_scoping",player.isScoping()?1d:0d);
         facts.put("is_casting",player.fishing!=null?1d:0d);
         facts.put("is_emoting",0d); // Integrations may replace this through the public input API.
+        // Bedrock player world queries use the standing origin, 1.62 blocks above
+        // Java's feet. Keep this fixed while sneaking; it is not the camera eye height.
+        // Only query data changes here, never the model/render transform.
+        facts.put("position",List.of(player.getX(),player.getY()+1.62d,player.getZ()));
         facts.put("is_spin_attacking",player.isAutoSpinAttack()?1d:0d);
         facts.put("main_hand_item_max_duration",player.getMainHandItem().getUseDuration(player)/20d);
         facts.put("item_is_charged",player.getMainHandItem().getOrDefault(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES,
             net.minecraft.world.item.component.ChargedProjectiles.EMPTY).isEmpty()?0d:1d);
         facts.put("has_head_gear",player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).isEmpty()?0d:1d);
-        facts.put("time_stamp",(double)player.level().getDefaultClockTime());
+        facts.put("time_stamp",(double)player.level().getGameTime());
         var direction=player.getDeltaMovement().normalize();
         facts.put("movement_direction",List.of(direction.x,direction.y,direction.z));
         double draw=player.isUsingItem()?player.getTicksUsingItem(partial)/20d:0;

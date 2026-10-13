@@ -12,12 +12,16 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Set;
 
-final class VirtualCompatibilityPackResources implements PackResources {
+public final class VirtualCompatibilityPackResources implements PackResources {
 	private static final byte[] PACK_ICON = loadIcon();
 	private final PackLocationInfo location;
+	private final byte[] icon;
 	private final GeneratedResourceSnapshot snapshot;
 
-	VirtualCompatibilityPackResources(PackLocationInfo location, GeneratedResourceSnapshot snapshot) {
+	public VirtualCompatibilityPackResources(PackLocationInfo location, GeneratedResourceSnapshot snapshot) {this(location,snapshot,null);}
+
+	public VirtualCompatibilityPackResources(PackLocationInfo location, GeneratedResourceSnapshot snapshot, byte[] icon) {
+		this.icon=icon==null?PACK_ICON:icon.clone();
 		this.location = location;
 		this.snapshot = snapshot;
 	}
@@ -25,7 +29,7 @@ final class VirtualCompatibilityPackResources implements PackResources {
 	@Override
 	public IoSupplier<InputStream> getRootResource(String... elements) {
 	if (elements.length == 1 && elements[0].equals("pack.png")) {
-			return () -> new ByteArrayInputStream(PACK_ICON.clone());
+			return () -> new ByteArrayInputStream(icon.clone());
 		}
 		return null;
 	}

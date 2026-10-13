@@ -5,6 +5,14 @@
   "name": "Bedrock Compatibility Runtime Tests",
   "environment": "client",
   "entrypoints": {
-    "fabric-client-gametest": ["dev.matanyah.bedrockcompat.test.NativeEntityGameTest"]
-  }
+    "fabric-client-gametest": [
+      "dev.matanyah.bedrockcompat.test.NativeEntityGameTest"
+    ],
+    "main": [
+      "dev.matanyah.bedrockcompat.test.StaticBlockTestInitializer"
+    ]
+  },
+  "mixins": [
+    "behavior_test.mixins.json"
+  ]
 }

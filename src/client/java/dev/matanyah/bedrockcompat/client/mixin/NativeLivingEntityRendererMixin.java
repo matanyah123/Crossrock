@@ -15,6 +15,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -22,6 +23,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LivingEntityRenderer.class)
 public abstract class NativeLivingEntityRendererMixin {
+    @Unique private net.minecraft.client.renderer.entity.layers.EquipmentLayerRenderer bedrockCompat$equipmentRenderer;
+    @Inject(method="<init>",at=@At("RETURN"))
+    private void bedrockCompat$equipment(net.minecraft.client.renderer.entity.EntityRendererProvider.Context context,
+            net.minecraft.client.model.EntityModel<?> model,float shadowRadius,CallbackInfo ci) {
+        bedrockCompat$equipmentRenderer=context.getEquipmentRenderer();
+    }
     @WrapOperation(method="submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
         at=@At(value="INVOKE",target="Lnet/minecraft/client/renderer/entity/LivingEntityRenderer;setupRotations(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;FF)V"))
     private void bedrockCompat$rotations(LivingEntityRenderer<?,?,?> renderer,LivingEntityRenderState state,PoseStack poses,
@@ -30,8 +37,18 @@ public abstract class NativeLivingEntityRendererMixin {
         else {
             // Bedrock clips own sleep/death/swim/roll transforms; applying Java's
             // species-specific transforms as well rotates/translates the model twice.
-            float facing=state.bedOrientation==null?yaw:state.bedOrientation.toYRot();
-            poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180-facing));
+            poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(
+                dev.matanyah.bedrockcompat.bedrock.entity.BedrockModelSpace.livingYaw(yaw,
+                    state.bedOrientation==null?null:state.bedOrientation.toYRot())));
+            // Gliding orientation is an engine transform, not a limb animation.
+            // Keep its eased pitch and velocity alignment when replacing the mesh.
+            if(state instanceof net.minecraft.client.renderer.entity.state.AvatarRenderState player
+                    &&player.isFallFlying) {
+                if(!player.isAutoSpinAttack)
+                    poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(player.fallFlyingScale()*(-90-player.xRot)));
+                if(player.shouldApplyFlyingYRot)
+                    poses.mulPose(com.mojang.math.Axis.YP.rotation(player.flyingYRot));
+            }
         }
     }
     @WrapOperation(method="submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
@@ -44,6 +61,7 @@ public abstract class NativeLivingEntityRendererMixin {
         at=@At(value="INVOKE",target="Lnet/minecraft/client/renderer/entity/LivingEntityRenderer;scale(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V"))
     private void bedrockCompat$scale(LivingEntityRenderer<?,?,?> renderer,LivingEntityRenderState state,PoseStack poses,Operation<Void> original) {
         if(((NativeRenderState)state).bedrockCompatFrame()==null)original.call(renderer,state,poses);
+        else poses.scale(state.ageScale,state.ageScale,state.ageScale);
     }
     @WrapOperation(method="submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
         at=@At(value="INVOKE",target="Lnet/minecraft/client/renderer/SubmitNodeCollector;submitModel(Lnet/minecraft/client/model/Model;Ljava/lang/Object;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/rendertype/RenderType;IIILnet/minecraft/client/renderer/texture/TextureAtlasSprite;ILnet/minecraft/client/renderer/feature/ModelFeatureRenderer$CrumblingOverlay;)V"))
@@ -53,7 +71,7 @@ public abstract class NativeLivingEntityRendererMixin {
         if(frame==null)original.call(collector,model,value,poses,type,light,overlay,color,sprite,outline,crumble);
         else {
             var state=(LivingEntityRenderState)value;
-            NativeEntityRenderer.submit(frame,poses,collector,light,overlay,color,outline,state.isInvisible&&state.isInvisibleToPlayer);
+            NativeEntityRenderer.submit(frame,poses,collector,light,overlay,color,outline,state.isInvisible&&state.isInvisibleToPlayer,bedrockCompat$equipmentRenderer);
         }
     }
     @Inject(method="shouldRenderLayers",at=@At("HEAD"),cancellable=true)

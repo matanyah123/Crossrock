@@ -6,6 +6,59 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BedrockEntityInstanceTest {
+    @Test void attachablePhysicsQueriesUseTheCurrentHolderBinding() {
+        var definition=BedrockClientEntity.parse(JsonParser.parseString("""
+            {"description":{"identifier":"minecraft:test","geometry":{"default":"g"},
+             "animations":{"read":"clip"},"scripts":{"animate":["read"]}}}
+            """).getAsJsonObject());
+        var geometry=BedrockGeometry.parse(JsonParser.parseString("{\"bones\":[{\"name\":\"item\",\"pivot\":[0,7.5,0]}]}").getAsJsonObject());
+        var clip=new BedrockAnimation(JsonParser.parseString("""
+            {"anim_time_update":"v.trs=q.bone_orientation_trs('item');return 0;",
+             "bones":{"probe":{"position":["v.trs.t.x",0,0]}}}
+            """).getAsJsonObject());
+        var runtime=new BedrockEntityInstance(definition);
+        for(int x:new int[]{4,12,20}) {
+            var frame=runtime.withBindings(Map.of("item",new org.joml.Matrix4f().translation(x,20,0)),()->
+                runtime.evaluateFrame((q,a)->0d,Map.of(),Map.of("clip",clip),Map.of(),OptionalInt.empty(),x,Map.of("g",geometry)));
+            assertEquals(x,frame.poses().get("probe").position().x(),1e-5);
+        }
+    }
+    @Test void nestedOverrideResetsPrecedingThisToBindPoseOnlyForReplacedBones() {
+        var definition=BedrockClientEntity.parse(JsonParser.parseString("""
+            {"description":{"identifier":"minecraft:test","geometry":{"default":"g"},
+             "animations":{"base":"base","root":"root","child":"child","replace":"replace","follow":"follow"},
+             "scripts":{"animate":["base","root"]}}}
+            """).getAsJsonObject());
+        var base=new BedrockAnimation(JsonParser.parseString("""
+            {"bones":{"head":{"position":[5,0,0],"scale":3},"leg":{"position":[7,0,0]}}}
+            """).getAsJsonObject());
+        var replacement=new BedrockAnimation(JsonParser.parseString("""
+            {"override_previous_animation":true,"bones":{"head":{"position":[2,0,0],"scale":2}}}
+            """).getAsJsonObject());
+        var follow=new BedrockAnimation(JsonParser.parseString("""
+            {"bones":{"head":{"position":["this",0,0],"rotation":["this",0,0],"scale":"this"},
+                      "leg":{"position":["this",0,0]}}}
+            """).getAsJsonObject());
+        var root=new BedrockAnimationController(JsonParser.parseString("""
+            {"states":{"default":{"animations":["child","follow"]}}}
+            """).getAsJsonObject());
+        var child=new BedrockAnimationController(JsonParser.parseString("""
+            {"states":{"default":{"animations":[{"replace":"q.replace_enabled"}]}}}
+            """).getAsJsonObject());
+        var geometry=BedrockGeometry.parse(JsonParser.parseString("""
+            {"bones":[{"name":"head","rotation":[30,0,0]},{"name":"leg"}]}
+            """).getAsJsonObject());
+        for(boolean enabled:List.of(false,true)) {
+            var frame=new BedrockEntityInstance(definition).evaluateFrame((q,a)->enabled?1d:0d,Map.of(),
+                Map.of("base",base,"replace",replacement,"follow",follow),Map.of("root",root,"child",child),
+                OptionalInt.empty(),0,Map.of("g",geometry));
+            assertEquals(enabled?4:10,frame.poses().get("head").position().x(),"Only a weighted override may replace the outer clip before evaluating this");
+            assertEquals(enabled?3:5,frame.poses().get("head").scale().x(),"Override must reset scale to bind scale, not the outer scale");
+            assertEquals(30,frame.poses().get("head").rotation().x(),"this must still include geometry bind rotation");
+            assertEquals(14,frame.poses().get("leg").position().x(),"An unrelated bone must retain the outer clip");
+        }
+    }
+
     @Test void animationClockIsScopedToClipAndTimelineNotEntityScripts() {
         var definition=BedrockClientEntity.parse(JsonParser.parseString("""
             {"description":{"identifier":"minecraft:test","animations":{"move":"clip"},
@@ -46,12 +99,14 @@ class BedrockEntityInstanceTest {
             """).getAsJsonObject());
         var active=new BedrockAnimation(JsonParser.parseString("{\"bones\":{\"head\":{\"position\":[0,5,0]}}}").getAsJsonObject());
         var muted=new BedrockAnimation(JsonParser.parseString("""
-            {"override_previous_animation":true,"bones":{"head":{"position":[0,99,0]}},
+            {"override_previous_animation":true,"anim_time_update":"v.wrong=99;return q.anim_time;","bones":{"head":{"position":[0,99,0]}},
              "sound_effects":{"0":{"effect":"wrong"}}}
             """).getAsJsonObject());
-        var frame=new BedrockEntityInstance(definition).evaluateFrame((q,a)->0d,Map.of(),
+        var instance=new BedrockEntityInstance(definition);
+        var frame=instance.evaluateFrame((q,a)->0d,Map.of(),
             Map.of("a",active,"b",muted),Map.of(),OptionalInt.empty(),0);
         assertEquals(5,frame.poses().get("head").position().y());assertTrue(frame.effects().isEmpty());
+        assertEquals(0d,Molang.number(instance.withContext((q,a)->0d,c->c.variable("wrong"))));
     }
     @Test void modelScaleUsesPreAnimationVariablesAndAxisOverrides() {
         var definition=BedrockClientEntity.parse(JsonParser.parseString("""

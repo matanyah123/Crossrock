@@ -10,8 +10,18 @@ public final class BedrockGeometryMesh {
     public record Vertex(float x, float y, float z, float u, float v, BedrockGeometry.Vec normal) {
         public Vertex(float x, float y, float z, float u, float v) { this(x,y,z,u,v,null); }
     }
-    public record Quad(String bone, String material, List<Vertex> vertices, float nx, float ny, float nz) {}
+    public record Quad(String bone, String material, List<Vertex> vertices, float nx, float ny, float nz,int cubeIndex,String face) {
+        public Quad(String bone,String material,List<Vertex> vertices,float nx,float ny,float nz){this(bone,material,vertices,nx,ny,nz,-1,"");}
+    }
     private BedrockGeometryMesh() {}
+
+    /** A camera pass lacks the living renderer's 180-degree facing transform. */
+    public static List<Quad> cameraFacing(List<Quad> mesh) {
+        return mesh.stream().map(q->new Quad(q.bone,q.material,q.vertices.stream().map(v->{
+            var n=v.normal;
+            return new Vertex(-v.x,v.y,-v.z,v.u,v.v,n==null?null:new BedrockGeometry.Vec(-n.x(),n.y(),-n.z()));
+        }).toList(),-q.nx,q.ny,-q.nz,q.cubeIndex,q.face)).toList();
+    }
 
     /** Bedrock camera-space depth faces +Z; Java's hand projection looks along -Z.
      * A reflection also reverses winding, otherwise culled materials disappear. */
@@ -25,26 +35,35 @@ public final class BedrockGeometryMesh {
                 vertices.add(new Vertex(v.x,v.y,-v.z,v.u,v.v,
                     n==null?null:new BedrockGeometry.Vec(n.x(),n.y(),-n.z())));
             }
-            result.add(new Quad(quad.bone,quad.material,List.copyOf(vertices),quad.nx,quad.ny,-quad.nz));
+            result.add(new Quad(quad.bone,quad.material,List.copyOf(vertices),quad.nx,quad.ny,-quad.nz,quad.cubeIndex,quad.face));
         }
         return List.copyOf(result);
     }
 
     public static List<Quad> bake(BedrockGeometry geometry, Map<String,BedrockAnimation.Pose> poses,
                                   List<BedrockRenderController.Visibility> visibility) {
-        Map<String,Matrix4f> transforms=transforms(geometry,poses);
+        return bake(geometry,poses,visibility,Map.of());
+    }
+    /** Resolved root bindings are holder anchors in Bedrock model space, never Java matrices. */
+    public static List<Quad> bake(BedrockGeometry geometry, Map<String,BedrockAnimation.Pose> poses,
+                                  List<BedrockRenderController.Visibility> visibility,Map<String,Matrix4f> bindings) {
+        Map<String,Matrix4f> transforms=transforms(geometry,poses,bindings);
         List<Quad> out = new ArrayList<>();
         for (var bone : geometry.bones()) {
+            // Hidden bindings/zero animation scales collapse the complete descendant branch.
+            // Avoid inverse normal matrices and NaNs for that intentionally invisible geometry.
+            if(!bindings.isEmpty()&&Math.abs(transforms.get(bone.name()).determinant3x3())<1e-12f)continue;
             boolean visible = true;
             for (var rule : visibility) if (matches(rule.bonePattern(),bone.name())) visible = rule.visible();
             if (!visible || bone.neverRender()) continue;
-            for (var cube : bone.cubes()) {
+            for (int cubeIndex=0;cubeIndex<bone.cubes().size();cubeIndex++) {
+                var cube=bone.cubes().get(cubeIndex);
                 Matrix4f transform = new Matrix4f(transforms.get(bone.name()));
                 var pivot = cube.pivot();
                 transform.translate((float)pivot.x(),(float)pivot.y(),(float)pivot.z());
                 rotate(transform,cube.rotation());
                 transform.translate((float)-pivot.x(),(float)-pivot.y(),(float)-pivot.z());
-                bakeCube(geometry,bone,cube,transform,out);
+                bakeCube(geometry,bone,cube,transform,out,cubeIndex);
             }
             bakePolygons(bone,transforms.get(bone.name()),out);
         }
@@ -53,7 +72,10 @@ public final class BedrockGeometryMesh {
 
     /** Bone pivots and named locators share exactly the model's animated hierarchy. */
     public static Map<String,Matrix4f> anchors(BedrockGeometry geometry,Map<String,BedrockAnimation.Pose> poses) {
-        var transforms=transforms(geometry,poses);Map<String,Matrix4f> result=new LinkedHashMap<>();
+        return anchors(geometry,poses,Map.of());
+    }
+    public static Map<String,Matrix4f> anchors(BedrockGeometry geometry,Map<String,BedrockAnimation.Pose> poses,Map<String,Matrix4f> bindings) {
+        var transforms=transforms(geometry,poses,bindings);Map<String,Matrix4f> result=new LinkedHashMap<>();
         for(var bone:geometry.bones()) {
             var matrix=transforms.get(bone.name());var pivot=bone.pivot();
             result.put(bone.name(),new Matrix4f(matrix).translate((float)pivot.x(),(float)pivot.y(),(float)pivot.z()));
@@ -68,6 +90,10 @@ public final class BedrockGeometryMesh {
     }
 
     private static Map<String,Matrix4f> transforms(BedrockGeometry geometry,Map<String,BedrockAnimation.Pose> poses) {
+        return transforms(geometry,poses,Map.of());
+    }
+    private static Map<String,Matrix4f> transforms(BedrockGeometry geometry,Map<String,BedrockAnimation.Pose> poses,
+                                                   Map<String,Matrix4f> bindings) {
         Map<String,BedrockGeometry.Bone> bones = new LinkedHashMap<>();
         geometry.bones().forEach(b -> bones.put(b.name(),b));
         Map<String,Matrix4f> transforms = new HashMap<>();
@@ -83,6 +109,8 @@ public final class BedrockGeometryMesh {
                 var next = chain.pop();
                 Matrix4f matrix = next.parent() == null ? new Matrix4f() : new Matrix4f(transforms.get(next.parent()));
                 var pivot = next.pivot();
+                if(bindings.containsKey(next.name()))matrix=new Matrix4f(bindings.get(next.name()))
+                    .translate((float)-pivot.x(),(float)-pivot.y(),(float)-pivot.z());
                 var pose = poses.get(next.name());
                 if (pose != null) matrix.translate((float)pose.position().x(),(float)pose.position().y(),(float)pose.position().z());
                 matrix.translate((float)pivot.x(),(float)pivot.y(),(float)pivot.z());
@@ -142,7 +170,7 @@ public final class BedrockGeometryMesh {
         }
     }
     private static void bakeCube(BedrockGeometry geometry,BedrockGeometry.Bone bone,BedrockGeometry.Cube cube,
-                                 Matrix4f transform,List<Quad> out) {
+                                 Matrix4f transform,List<Quad> out,int cubeIndex) {
                 double x0 = cube.origin().x()-cube.inflate(), y0 = cube.origin().y()-cube.inflate(), z0 = cube.origin().z()-cube.inflate();
                 double x1 = cube.origin().x()+cube.size().x()+cube.inflate();
                 double y1 = cube.origin().y()+cube.size().y()+cube.inflate();
@@ -174,9 +202,11 @@ public final class BedrockGeometryMesh {
                     Vector3f normal = new Vector3f(transformed.get(1)).sub(transformed.get(0))
                         .cross(new Vector3f(transformed.get(2)).sub(transformed.get(0)));
                     if (normal.lengthSquared() < 1e-12f) continue;
-                    normal.normalize().negate();
-                    Collections.reverse(vertices);
-                    out.add(new Quad(bone.name(),uv.material(),List.copyOf(vertices),normal.x,normal.y,normal.z));
+                    // Negative bone scale reflects winding, but must not turn a shell inside out.
+                    boolean reflected=transform.determinant3x3()<0;
+                    normal.normalize().mul(reflected?1:-1);
+                    if(!reflected)Collections.reverse(vertices);
+                    out.add(new Quad(bone.name(),uv.material(),List.copyOf(vertices),normal.x,normal.y,normal.z,cubeIndex,face));
                 }
     }
 

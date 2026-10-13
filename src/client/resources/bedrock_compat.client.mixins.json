@@ -2,7 +2,32 @@
   "required": true,
   "package": "dev.matanyah.bedrockcompat.client.mixin",
   "compatibilityLevel": "JAVA_25",
-  "client": ["BuiltInPackSourceMixin", "OptionsMixin", "NativeEntityRenderStateMixin", "NativeLivingEntityRendererMixin", "NativeEntityExtractionMixin", "NativeEntityDispatcherMixin", "NativeEntityNameInvoker", "NativePlayerRendererMixin", "NativePlayerHandsMixin"],
+  "client": [
+    "NativeJsonUiSlotAccess",
+    "NativeJsonUiContainerAccess",
+    "NativeJsonUiTitleMixin",
+    "ResourcePackScreenMixin",
+    "ResourcePackReloadMixin",
+    "BuiltInPackSourceMixin",
+    "OptionsMixin",
+    "NativeEntityRenderStateMixin",
+    "NativeLivingEntityRendererMixin",
+    "NativeEntityExtractionMixin",
+    "NativeEntityDispatcherMixin",
+    "NativeEntityNameInvoker",
+    "NativePlayerRendererMixin",
+    "NativePlayerHandsMixin",
+    "NativeInventoryEntityMixin",
+    "NativeSkinTransparencyMixin",
+    "NativeSkinTextureInvoker",
+    "NativeParticleEngineMixin",
+    "NativeParticleRectanglesMixin",
+    "NativeEnvironmentAttributesMixin",
+    "NativeEnvironmentTintMixin",
+    "NativeBlockFaceCullingMixin",
+    "BehaviorPackModelMixin",
+    "BehaviorEditWorldMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

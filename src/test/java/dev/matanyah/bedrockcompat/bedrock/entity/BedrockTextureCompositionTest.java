@@ -4,6 +4,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BedrockTextureCompositionTest {
+    @Test void dyeCoverageIsNotOpacityAndDoesNotTintTheFace() {
+        assertEquals(0xffb68560,BedrockTextureComposition.colorMask(0x03b68761,0xff0000,true));
+        assertEquals(0xffff0000,BedrockTextureComposition.colorMask(0xffffffff,0xff0000,true));
+        assertEquals(0xffb68761,BedrockTextureComposition.colorMask(0x03b68761,0xffffff,true));
+        assertEquals(0,BedrockTextureComposition.colorMask(0,0xffffff,true));
+    }
     @Test void transparentBlackCutsOutAndTransparentColorPreservesBase() {
         assertEquals(0,BedrockTextureComposition.masked(0xff123456,0));
         assertEquals(0xff123456,BedrockTextureComposition.masked(0xff123456,0x00ffffff));

@@ -15,7 +15,10 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
-import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.Checkbox;
+import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -47,6 +50,7 @@ public final class BedrockPackConfigScreen extends Screen {
 	private boolean ownsIcon;
 	private ConfigList list;
 	private boolean documentation;
+	private ChoiceList choices;
 
 	public BedrockPackConfigScreen(Screen parent, String packId, BedrockPack pack) {
 		super(Component.translatable("bedrock_compat.config.title", pack.displayName()));
@@ -60,6 +64,7 @@ public final class BedrockPackConfigScreen extends Screen {
 
 	@Override
 	protected void init() {
+		choices=null;
 		loadIcon();
 		int panelWidth = panelWidth();
 		int x = (width - panelWidth) / 2;
@@ -79,10 +84,8 @@ public final class BedrockPackConfigScreen extends Screen {
 		if (!pack.subpacks().isEmpty()) {
 			BedrockSubpack initial = pack.subpacks().stream().filter(value -> value.folderName().equals(selectedSubpack))
 				.findFirst().orElse(pack.subpacks().getLast());
-			CycleButton<BedrockSubpack> button = CycleButton.builder(value -> Component.literal(value.name()), initial)
-				.withValues(pack.subpacks()).create(Component.translatable("bedrock_compat.config.subpack"),
-					(cycle, value) -> selectedSubpack = value.folderName());
-			list.addControl(button);
+            list.addControl(Component.translatable("bedrock_compat.config.subpack"),choiceButton(pack.subpacks().stream().map(s->new BedrockPackSetting.Option(s.folderName(),s.name())).toList(),
+                initial.folderName(),value->selectedSubpack=value));
 		}
 
 		for (BedrockPackSetting setting : pack.settings()) if (!(setting instanceof BedrockPackSetting.Label)) addSetting(setting);
@@ -104,32 +107,93 @@ public final class BedrockPackConfigScreen extends Screen {
             Object stored = values.get(multi.name());
             List<?> selected = stored instanceof List<?> items ? items : multi.defaults();
             for (BedrockPackSetting.Option option : multi.options()) {
-                list.addControl(CycleButton.onOffBuilder(selected.contains(option.name())).create(
-                    Component.literal(label(option.text(), option.name())), (button, enabled) -> {
+                list.addControl(Component.literal(label(option.text(),option.name())),Checkbox.builder(Component.empty(),font).selected(selected.contains(option.name())).onValueChange((button, enabled) -> {
                         List<String> updated = new ArrayList<>();
                         Object current = values.get(multi.name());
                         List<?> existing = current instanceof List<?> items ? items : multi.defaults();
                         for (BedrockPackSetting.Option candidate : multi.options())
                             if (candidate.name().equals(option.name()) ? enabled : existing.contains(candidate.name())) updated.add(candidate.name());
                         values.put(multi.name(), List.copyOf(updated));
-                    }));
+                    }).build());
             }
         } else if (setting instanceof BedrockPackSetting.Toggle toggle) {
 			boolean initial = value(toggle.name(), Boolean.class, toggle.defaultValue());
-			list.addControl(CycleButton.onOffBuilder(initial).create(Component.literal(label(toggle.text(), toggle.name())),
-				(button, current) -> values.put(toggle.name(), current)));
+            list.addControl(Component.literal(label(toggle.text(), toggle.name())),Checkbox.builder(Component.empty(),font).selected(initial)
+                .onValueChange((button,current)->values.put(toggle.name(),current)).build());
 		} else if (setting instanceof BedrockPackSetting.Slider slider) {
 			double initial = value(slider.name(), Number.class, slider.defaultValue()).doubleValue();
-			list.addControl(new SettingSlider(slider, initial));
+			list.addControl(Component.literal(label(slider.text(),slider.name())),new SettingSlider(slider, initial));
 		} else if (setting instanceof BedrockPackSetting.Dropdown dropdown && !dropdown.options().isEmpty()) {
 			String selected = value(dropdown.name(), String.class, dropdown.defaultValue());
-			BedrockPackSetting.Option initial = dropdown.options().stream().filter(option -> option.name().equals(selected))
-				.findFirst().orElse(dropdown.options().getFirst());
-			list.addControl(CycleButton.builder(option -> Component.literal(label(option.text(), option.name())), initial)
-				.withValues(dropdown.options()).create(Component.literal(label(dropdown.text(), dropdown.name())),
-					(button, current) -> values.put(dropdown.name(), current.name())));
+            list.addControl(Component.literal(label(dropdown.text(),dropdown.name())),choiceButton(dropdown.options(),selected,current->values.put(dropdown.name(),current)));
 		}
 	}
+
+    private Button choiceButton(List<BedrockPackSetting.Option> options,String initial,java.util.function.Consumer<String> changed) {
+        var selected=options.stream().filter(o->o.name().equals(initial)).findFirst().orElse(options.getFirst());
+        String[] current={selected.name()};
+        return Button.builder(Component.literal(label(selected.text(),selected.name())+" ▾"),button->{
+            closeChoices();
+            int h=Math.min(120,options.size()*24+4);
+            int y=button.getBottom()+2;
+            if(y+h>height-32)y=Math.max(100,button.getY()-h-2);
+            choices=addRenderableWidget(new ChoiceList(button.getX(),y,button.getWidth(),h,options,current[0],
+                option->{current[0]=option.name();changed.accept(option.name());button.setMessage(Component.literal(label(option.text(),option.name())+" ▾"));closeChoices();setFocused(button);}));
+            setFocused(choices);
+        }).build();
+    }
+    private void closeChoices(){if(choices!=null){removeWidget(choices);choices=null;}}
+    @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {
+        return choices!=null?choices.mouseScrolled(x,y,horizontal,vertical):super.mouseScrolled(x,y,horizontal,vertical);
+    }
+    @Override public boolean mouseReleased(MouseButtonEvent event) {
+        return choices!=null?choices.mouseReleased(event):super.mouseReleased(event);
+    }
+    @Override public boolean mouseDragged(MouseButtonEvent event,double x,double y) {
+        return choices!=null?choices.mouseDragged(event,x,y):super.mouseDragged(event,x,y);
+    }
+    @Override public boolean mouseClicked(MouseButtonEvent event,boolean doubleClick) {
+        if(choices!=null){
+            if(choices.isMouseOver(event.x(),event.y()))return choices.mouseClicked(event,doubleClick);
+            closeChoices();return true;
+        }
+        return super.mouseClicked(event,doubleClick);
+    }
+    @Override public boolean keyPressed(KeyEvent event) {
+        if(choices!=null){
+            if(event.key()==256){closeChoices();setFocused(list);return true;}
+            if(event.key()==264||event.key()==265){choices.moveSelection(event.key()==264?1:-1);return true;}
+            if((event.key()==257||event.key()==335)&&choices.getSelected()!=null){choices.getSelected().choose();return true;}
+            return choices.keyPressed(event);
+        }
+        return super.keyPressed(event);
+    }
+    private final class ChoiceList extends ObjectSelectionList<ChoiceEntry> {
+        ChoiceList(int x,int y,int width,int height,List<BedrockPackSetting.Option> options,String selected,java.util.function.Consumer<BedrockPackSetting.Option> changed){
+            super(BedrockPackConfigScreen.this.minecraft,width,height,y,24);centerListVertically=false;
+            updateSizeAndPosition(width,height,x,y);
+            for(var option:options)addEntry(new ChoiceEntry(option,changed));
+            setSelected(children().stream().filter(e->e.option.name().equals(selected)).findFirst().orElse(children().getFirst()));
+            scrollToEntry(getSelected());
+        }
+        @Override public int getRowWidth(){return getWidth()-12;}
+        private void moveSelection(int delta){
+            int index=Mth.clamp(children().indexOf(getSelected())+delta,0,children().size()-1);
+            setSelected(children().get(index));scrollToEntry(getSelected());
+        }
+        @Override protected void extractListBackground(GuiGraphicsExtractor graphics){graphics.fill(getX(),getY(),getRight(),getBottom(),0xFF202020);}
+    }
+    private final class ChoiceEntry extends ObjectSelectionList.Entry<ChoiceEntry> {
+        private final BedrockPackSetting.Option option;
+        private final java.util.function.Consumer<BedrockPackSetting.Option> changed;
+        ChoiceEntry(BedrockPackSetting.Option option,java.util.function.Consumer<BedrockPackSetting.Option> changed){this.option=option;this.changed=changed;}
+        void choose(){changed.accept(option);}
+        @Override public Component getNarration(){return Component.literal(label(option.text(),option.name()));}
+        @Override public boolean mouseClicked(MouseButtonEvent event,boolean doubleClick){if(event.button()!=0)return false;choose();return true;}
+        @Override public void extractContent(GuiGraphicsExtractor graphics,int x,int y,boolean hovered,float partial){
+            graphics.text(font,fit(label(option.text(),option.name()),getContentWidth()),getContentX(),getContentY()+6,0xFFFFFFFF);
+        }
+    }
 
 	private <T> T value(String name, Class<T> type, T fallback) {
 		Object value = values.get(name);
@@ -239,7 +303,7 @@ public final class BedrockPackConfigScreen extends Screen {
 		@Override
 		protected void updateMessage() {
 			double actual = actualValue();
-			setMessage(Component.literal(label(setting.text(), setting.name()) + ": " + format(actual)));
+			setMessage(Component.literal(format(actual)));
 		}
 
 		@Override
@@ -275,6 +339,7 @@ public final class BedrockPackConfigScreen extends Screen {
 		private void addControl(AbstractWidget widget) {
 			addEntry(new ConfigEntry(widget));
 		}
+        private void addControl(Component title,AbstractWidget widget){addEntry(new ConfigEntry(widget,title,minecraft.font));}
 
 		private void addLabel(Component text) {
 			addEntry(new ConfigEntry(new StringWidget(text, minecraft.font)));
@@ -288,38 +353,51 @@ public final class BedrockPackConfigScreen extends Screen {
 
 	private static final class ConfigEntry extends ContainerObjectSelectionList.Entry<ConfigEntry> {
 		private final AbstractWidget widget;
+        private final StringWidget labelWidget;
 		private Component tooltipMessage;
 		private Tooltip tooltip;
 
 		private ConfigEntry(AbstractWidget widget) {
+			this(widget,null,null);
+		}
+        private ConfigEntry(AbstractWidget widget,Component label,Font font) {
 			this.widget = widget;
+            labelWidget=label==null?null:new StringWidget(label,font);
+            if(labelWidget!=null)labelWidget.setTooltip(Tooltip.create(label));
 			updateTooltip();
 		}
 
 		private void updateTooltip() {
-			if (!widget.getMessage().equals(tooltipMessage)) {
-				tooltipMessage = widget.getMessage().copy();
+            Component message=labelWidget==null?widget.getMessage():labelWidget.getMessage().copy()
+                .append(widget.getMessage().getString().isEmpty()?Component.empty():Component.literal(": ").append(widget.getMessage()));
+			if (!message.equals(tooltipMessage)) {
+				tooltipMessage = message.copy();
 				tooltip = Tooltip.create(tooltipMessage);
 			}
-			// Cycle buttons can clear their tooltip when their selected value changes.
+			// Keep the full label and current choice available when either is truncated.
 			widget.setTooltip(tooltip);
 		}
 
 		@Override
 		public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
-			widget.setRectangle(getContentWidth(), 20, getContentX(), getContentY() + 2);
+            int controlWidth=labelWidget==null?getContentWidth():widget instanceof Checkbox?20:Math.min(220,getContentWidth()/2);
+			widget.setRectangle(controlWidth, 20, getContentX()+getContentWidth()-controlWidth, getContentY() + 2);
+            if(labelWidget!=null){
+                labelWidget.setRectangle(getContentWidth()-controlWidth-12,20,getContentX(),getContentY()+2);
+                labelWidget.extractRenderState(graphics,mouseX,mouseY,partialTick);
+            }
 			updateTooltip();
 			widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
 		}
 
 		@Override
 		public List<? extends GuiEventListener> children() {
-			return List.of(widget);
+			return labelWidget==null?List.of(widget):List.of(widget,labelWidget);
 		}
 
 		@Override
 		public List<? extends NarratableEntry> narratables() {
-			return List.of(widget);
+			return labelWidget==null?List.of(widget):List.of(labelWidget,widget);
 		}
 	}
 }

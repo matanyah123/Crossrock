@@ -1,0 +1,20 @@
+{
+  "files": 3042,
+  "definitions": {
+    "BP:animation_controllers": 27,
+    "BP:animations": 8,
+    "RP:animation_controllers": 54,
+    "RP:animations": 2512,
+    "RP:material": 63,
+    "RP:geometry": 25,
+    "RP:render_controllers": 26,
+    "RP:texture_set": 253
+  },
+  "component_types": 99,
+  "filter_types": 32,
+  "property_declarations": 47,
+  "event_subscriptions": 125,
+  "event_endpoints": 36,
+  "query_side_pairs": 73,
+  "json_scalar_values": 289076
+}

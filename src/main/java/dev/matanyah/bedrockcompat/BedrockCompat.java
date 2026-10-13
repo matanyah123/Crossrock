@@ -10,6 +10,7 @@ public final class BedrockCompat implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		dev.matanyah.bedrockcompat.behavior.BehaviorRuntime.register();
 		dev.matanyah.bedrockcompat.entity.ArmorStandNetworking.register();
 		dev.matanyah.bedrockcompat.entity.ArmorStandCompatibility.register();
 		LOGGER.info("Crossrock initialized");

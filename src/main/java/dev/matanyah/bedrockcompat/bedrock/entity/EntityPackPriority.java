@@ -5,6 +5,7 @@ import java.util.*;
 /** Resource-source ordering, independent of the presence or APIs of rendering mods. */
 public final class EntityPackPriority {
     private final int nativeRank;
+    private Map<String,Integer> actors=Map.of();
     private final Map<String,Integer> textures, models;
     public EntityPackPriority(String nativePack,Map<String,Integer> ranks,Map<String,String> sources) {
         nativeRank=ranks.getOrDefault(nativePack,-1);
@@ -25,8 +26,12 @@ public final class EntityPackPriority {
         });
         textures=Map.copyOf(textureRanks);models=Map.copyOf(modelRanks);
     }
-    public boolean owns(String entity,String texture) {
-        return owns(texture,Set.of(entity));
+    public EntityPackPriority(String nativePack,Map<String,Integer> ranks,Map<String,String> sources,Map<String,String> actorSources) {
+        this(nativePack,ranks,sources);Map<String,Integer> values=new HashMap<>();actorSources.forEach((id,pack)->values.put(id,ranks.getOrDefault(pack,-1)));actors=Map.copyOf(values);
+    }
+    public boolean owns(String entity,String texture) {return owns(entity,texture,Set.of(entity));}
+    public boolean owns(String entity,String texture,Collection<String> modelNames) {
+        int rank=actors.getOrDefault(entity,nativeRank);return rank>=0&&textures.getOrDefault(canonicalTexture(texture),-1)<=rank&&modelNames.stream().noneMatch(model->models.getOrDefault(model,-1)>rank);
     }
     public boolean owns(String texture,Collection<String> modelNames) {
         return nativeRank>=0 && textures.getOrDefault(canonicalTexture(texture),-1)<=nativeRank

@@ -35,4 +35,20 @@ public final class InMemoryGeneratedResourceStore implements GeneratedResourceSi
 	public GeneratedResourceSnapshot snapshot() {
 		return new GeneratedResourceSnapshot(resources);
 	}
+
+	@Override public void putText(Identifier id, byte[] data, boolean append) {
+		byte[] previous = resources.get(id);
+		if (append && previous != null) {
+			byte[] combined = new byte[previous.length + 1 + data.length];
+			System.arraycopy(previous, 0, combined, 0, previous.length);
+			combined[previous.length] = '\n';
+			System.arraycopy(data, 0, combined, previous.length + 1, data.length);
+			put(id, combined);
+		} else put(id, data);
+	}
+
+	@Override public void putText(Identifier id, byte[] data, boolean append, byte[] base) {
+		if (append && base != null && !resources.containsKey(id)) put(id, base);
+		putText(id, data, append);
+	}
 }

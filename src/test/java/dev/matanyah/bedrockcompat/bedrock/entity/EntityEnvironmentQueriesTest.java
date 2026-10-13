@@ -5,6 +5,14 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class EntityEnvironmentQueriesTest {
+    @Test void absoluteBlockTagsUseWorldCoordinatesWithinObservationRange() {
+        var queries=new EntityEnvironmentQueries((q,a)->42d,(x,y,z,tag)->
+            x==1000&&y==63&&z==-501&&Set.of("trapdoors","minecraft:trapdoors").contains(tag),1000.8,64.2,-500.1);
+        assertEquals(1d,queries.get("block_has_any_tag",List.of(1000.5,63.9,-500.1,"unknown","trapdoors")));
+        assertEquals(1d,queries.get("block_has_all_tags",List.of(1000.5,63.9,-500.1,"trapdoors","minecraft:trapdoors")));
+        assertEquals(0d,queries.get("block_has_all_tags",List.of(1000.5,63.9,-500.1,"trapdoors","unknown")));
+        assertThrows(IllegalArgumentException.class,()->queries.get("block_has_any_tag",List.of(0d,63d,0d,"trapdoors")));
+    }
     @Test void relativeBlocksFloorEntityPositionPlusOffsetAndPreserveAnyAllSemantics() {
         var queries=new EntityEnvironmentQueries((q,a)->42d,(x,y,z,tag)->
             x==1&&y==63&&z==-1&&Set.of("minecraft:logs","wood").contains(tag),.8,64.2,-.1);

@@ -17,6 +17,7 @@ public abstract class NativeEntityExtractionMixin {
     @SuppressWarnings({"rawtypes","unchecked"})
     @Inject(method="createRenderState(Lnet/minecraft/world/entity/Entity;F)Lnet/minecraft/client/renderer/entity/state/EntityRenderState;",at=@At("RETURN"))
     private void bedrockCompat$extract(Entity entity,float partialTick,CallbackInfoReturnable<EntityRenderState> callback) {
+        if(NativeEntityRenderer.skipsWorldExtraction())return;
         // Subclass extractRenderState has finished, including texture variants and species fields.
         if(entity instanceof LivingEntity living && callback.getReturnValue() instanceof LivingEntityRenderState state
                 && (Object)this instanceof LivingEntityRenderer renderer)
@@ -28,5 +29,12 @@ public abstract class NativeEntityExtractionMixin {
                 dev.matanyah.bedrockcompat.bedrock.entity.EntityTextureNames.nonLiving(type.toString(),tipped));
             ((NativeRenderState)callback.getReturnValue()).bedrockCompatFrame(NativeEntityRenderer.extract(entity,callback.getReturnValue(),partialTick,texture));
         }
+        // Control-only names must not leave an empty, shadowed nameplate behind.
+        var state=callback.getReturnValue();
+        if(((NativeRenderState)state).bedrockCompatFrame()!=null
+                &&dev.matanyah.bedrockcompat.client.particle.NativeParticles.replacesFire(entity))state.displayFireAnimation=false;
+        if(entity instanceof net.minecraft.world.entity.decoration.ArmorStand
+                &&((NativeRenderState)state).bedrockCompatFrame()!=null&&entity.hasCustomName()
+                &&dev.matanyah.bedrockcompat.entity.ArmorStandDisplayMode.fromName(entity.getCustomName().getString()).hidesName())state.nameTag=null;
     }
 }

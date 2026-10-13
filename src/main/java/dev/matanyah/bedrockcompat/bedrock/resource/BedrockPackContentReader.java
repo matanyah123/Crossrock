@@ -37,6 +37,27 @@ public final class BedrockPackContentReader {
 		visitSelected(pack, selectedSubpack, BedrockPackContentReader::isLanguageSupported, false, consumer);
 	}
 
+	public void visitPresentation(BedrockPack pack, Optional<String> selectedSubpack, EntryConsumer consumer) throws IOException {
+		visitSelected(pack, selectedSubpack, name -> {
+			String path = name.replace('\\', '/').toLowerCase(Locale.ROOT);
+			return path.equals("splashes.json") || path.equals("texts/splashes.json")
+				|| path.startsWith("textures/ui/") && (path.endsWith(".png") || path.endsWith(".json"));
+		}, true, consumer);
+	}
+
+    public void visitBlockAssets(BedrockPack pack, Optional<String> selectedSubpack, EntryConsumer consumer) throws IOException {
+        visitSelected(pack, selectedSubpack, path -> {
+            String p = path.replace('\\', '/').toLowerCase(Locale.ROOT);
+            return p.startsWith("blocks/") && p.endsWith(".json")
+                || p.startsWith("models/blocks/") && p.endsWith(".json")
+                || p.startsWith("block_culling/") && p.endsWith(".json")
+                || p.startsWith("items/") && p.endsWith(".json")
+                || p.equals("textures/item_texture.json")
+                || p.startsWith("textures/") && (p.endsWith(".png") || p.endsWith(".tga"))
+                || p.equals("textures/terrain_texture.json") || p.equals("textures/flipbook_textures.json");
+        }, true, consumer);
+    }
+
 	/** Visits all selected-pack files, expanding BRArchives while excluding the containers themselves. */
 	public void visitAll(BedrockPack pack, Optional<String> selectedSubpack, EntryConsumer consumer)
 		throws IOException {
@@ -55,11 +76,26 @@ public final class BedrockPackContentReader {
 		visitSelected(pack, selectedSubpack, BedrockPackContentReader::isSoundSupported, true, consumer);
 	}
 
+    public void visitUi(BedrockPack pack, Optional<String> selectedSubpack, EntryConsumer consumer) throws IOException {
+        visitSelected(pack,selectedSubpack,p->p.startsWith("ui/")&&p.endsWith(".json"),false,consumer);
+    }
+    public void visitUiRegistered(BedrockPack pack,Optional<String> selectedSubpack,java.util.Set<String> paths,EntryConsumer consumer)throws IOException {
+        visitSelected(pack,selectedSubpack,paths::contains,false,consumer);
+    }
+
 	private void visitSelected(BedrockPack pack, Optional<String> selectedSubpack, Predicate<String> selector,
 		boolean expandSoundArchives, EntryConsumer consumer) throws IOException {
 		Map<String, byte[]> overrides = new LinkedHashMap<>();
 		String selectedPrefix = selectedSubpack.map(value -> "subpacks/" + value + "/").orElse(null);
-		visitRaw(pack, selector, expandSoundArchives, (path, data) -> {
+		visitRaw(pack, name -> {
+			String path = name.replace('\\', '/');
+			if (startsWithIgnoreCase(path, "subpacks/")) {
+				int slash = path.indexOf('/', "subpacks/".length());
+				if (slash < 0) return false;
+				path = path.substring(slash + 1);
+			}
+			return selector.test(path);
+		}, expandSoundArchives, (path, data) -> {
 			if (!startsWithIgnoreCase(path, "subpacks/")) consumer.accept(path, data);
 			else if (selectedPrefix != null && startsWithIgnoreCase(path, selectedPrefix)) {
 				overrides.put(path.substring(selectedPrefix.length()), data);
@@ -143,7 +179,7 @@ public final class BedrockPackContentReader {
 	private static boolean isTextureSupported(String name) {
 		String normalized = name.toLowerCase(Locale.ROOT);
 		return normalized.endsWith(".png") || normalized.endsWith(".tga") || normalized.equals("textures/terrain_texture.json")
-			|| normalized.equals("textures/flipbook_textures.json") || normalized.equals("blocks.json")
+			|| normalized.equals("textures/item_texture.json") || normalized.equals("textures/flipbook_textures.json") || normalized.equals("blocks.json")
 			|| normalized.equals("models/mobs.json")
 			|| normalized.startsWith("models/entity/") && normalized.endsWith(".geo.json")
 			|| normalized.startsWith("entity/") && normalized.endsWith(".json");

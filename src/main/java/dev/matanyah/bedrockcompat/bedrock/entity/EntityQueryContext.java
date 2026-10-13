@@ -5,16 +5,9 @@ import java.util.*;
 /** Immutable frame data; renderer/animation evaluation never reads mutable world objects. */
 public record EntityQueryContext(String name, String biome, Set<String> biomeTags,
                                  Map<String, Object> values) implements Molang.Queries {
-    private static final Map<String, String> LEGACY_BIOMES = Map.ofEntries(
-        Map.entry("minecraft:ice_plains", "minecraft:snowy_plains"),
-        Map.entry("minecraft:ice_plains_spikes", "minecraft:ice_spikes"),
-        Map.entry("minecraft:cold_beach", "minecraft:snowy_beach"),
-        Map.entry("minecraft:cold_taiga", "minecraft:snowy_taiga"),
-        Map.entry("minecraft:extreme_hills", "minecraft:windswept_hills"),
-        Map.entry("minecraft:roofed_forest", "minecraft:dark_forest"),
-        Map.entry("minecraft:mesa", "minecraft:badlands"));
     public EntityQueryContext {
-        biomeTags=Set.copyOf(biomeTags);values=Map.copyOf(values);
+        biome=BedrockBiomes.identifier(biome);
+        biomeTags=BedrockBiomes.tags(biome,biomeTags);values=Map.copyOf(values);
         Objects.requireNonNull(name);Objects.requireNonNull(biome);
     }
     public EntityQueryContext(String name, String biome, Set<String> biomeTags, Map<String, Object> values,
@@ -28,6 +21,11 @@ public record EntityQueryContext(String name, String biome, Set<String> biomeTag
         return result;
     }
     @Override public Object get(String query,List<Object> args) {
+        Object extension=values.get("query_provider");
+        if(extension instanceof MolangQueryProvider provider) {
+            var result=provider.query(query,args);
+            if(result.isPresent())return result.get();
+        }
         return switch(query) {
             case "rider_body_x_rotation","rider_body_y_rotation","rider_head_x_rotation","rider_head_y_rotation" -> {
                 if(args.size()>1)throw new IllegalArgumentException(query+" takes one rider index");
@@ -53,11 +51,7 @@ public record EntityQueryContext(String name, String biome, Set<String> biomeTag
                 yield near==far?(distance>=far?1d:0d):Math.clamp((distance-near)/(far-near),0,1);
             }
             case "any","all" -> {
-                if(args.isEmpty())yield 0d;
-                Object expected=args.getFirst();
-                boolean match=query.equals("any")?args.stream().skip(1).anyMatch(expected::equals)
-                    :args.stream().skip(1).allMatch(expected::equals);
-                yield match?1d:0d;
+                yield MolangQueryFunctions.get(query,args,(name,arguments)->{throw new IllegalArgumentException(name);});
             }
             case "property","has_property" -> {
                 if(args.size()!=1)throw new IllegalArgumentException(query+" requires one argument");
@@ -68,7 +62,8 @@ public record EntityQueryContext(String name, String biome, Set<String> biomeTag
                 yield property;
             }
             case "position","position_delta","movement_direction" -> {
-                int index=args.isEmpty()?0:(int)Molang.number(args.getFirst());
+                if(args.size()!=1)throw new IllegalArgumentException(query+" requires one axis");
+                int index=MolangQueryFunctions.index(args.getFirst(),2,query);
                 Object point=values.get(query);
                 if(index<0||index>2||!(point instanceof List<?> vector))throw new IllegalArgumentException("Invalid position query");
                 yield vector.get(index);
@@ -84,6 +79,13 @@ public record EntityQueryContext(String name, String biome, Set<String> biomeTag
                 yield (selected instanceof List<?> list ? list.contains(args.get(1).toString())
                     : selected != null && selected.toString().equals(args.get(1).toString())) ? 1d : 0d;
             }
+            case "get_pack_setting" -> {
+                if(args.size()!=1)throw new IllegalArgumentException("get_pack_setting requires a slider name");
+                Object settings=values.get("pack_settings");
+                Object selected=settings instanceof Map<?,?> map?map.get(args.getFirst().toString()):null;
+                if(!(selected instanceof Number))throw new IllegalArgumentException("Unsupported Bedrock numeric pack setting: "+args.getFirst());
+                yield Molang.number(selected);
+            }
             case "is_pack_setting_enabled" -> {
                 if(args.size()!=1)throw new IllegalArgumentException("is_pack_setting_enabled requires one argument");
                 Object settings=values.get("pack_settings");
@@ -94,7 +96,7 @@ public record EntityQueryContext(String name, String biome, Set<String> biomeTag
             case "is_owner_identifier_any" -> args.contains(values.get("owner_identifier"))?1d:0d;
             case "is_name_any" -> args.stream().anyMatch(name::equals)?1d:0d;
             case "entity_biome_has_any_identifier" -> args.stream().map(Object::toString)
-                .map(b -> LEGACY_BIOMES.getOrDefault(b,b)).anyMatch(biome::equals)?1d:0d;
+                .map(BedrockBiomes::identifier).anyMatch(biome::equals)?1d:0d;
             case "entity_biome_has_any_tags" -> args.stream().anyMatch(biomeTags::contains)?1d:0d;
             case "entity_biome_has_all_tags" -> args.stream().allMatch(biomeTags::contains)?1d:0d;
             case "in_range" -> args.size()==3 && Molang.number(args.get(0))>=Molang.number(args.get(1))

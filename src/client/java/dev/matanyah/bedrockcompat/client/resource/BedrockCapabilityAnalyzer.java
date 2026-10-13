@@ -16,7 +16,6 @@ import java.util.Set;
 /** Reports optional capability gaps without preventing supported resources from loading. */
 final class BedrockCapabilityAnalyzer {
 	private static final String ESF = "entity_sound_features";
-	private static final String PUNCHY = "punchy";
 	private final BedrockPackContentReader reader = new BedrockPackContentReader();
 
 	List<String> analyze(List<BedrockTranslationPipeline.ConfiguredPack> selected) {
@@ -39,20 +38,9 @@ final class BedrockCapabilityAnalyzer {
 				diagnostics.add(configured.pack().displayName() + ": capability scan skipped (" + exception.getMessage() + ")");
 				continue;
 			}
-			boolean attachables = paths.stream().anyMatch(path -> path.startsWith("attachables/") && path.endsWith(".json"));
-			if (attachables && !FabricLoader.getInstance().isModLoaded(PUNCHY)) {
-				diagnostics.add(configured.pack().displayName()
-					+ ": custom held-item models/animations detected; install Punchy!"
-					+ " to render the generated first-person Bedrock item resources");
-			}
+			// Native entity and first-person attachables do not require Punchy.
 			// Bedrock entity models and texture selection use the native runtime. Its actual
 			// unsupported definitions/queries are reported after reload, not as fake EMF/ETF dependencies.
-			boolean particleDefinitions = paths.stream().anyMatch(path -> path.startsWith("particles/")
-				|| path.contains("/particles/") || path.contains("particles.brarchive"));
-			if (particleDefinitions) {
-				diagnostics.add(configured.pack().displayName()
-					+ ": Bedrock particle behavior detected; particle emitters are not yet supported by a Java provider");
-			}
 			boolean scripts = paths.stream().anyMatch(path -> path.startsWith("scripts/") && path.endsWith(".js"));
 			if (scripts) {
 				diagnostics.add(configured.pack().displayName()

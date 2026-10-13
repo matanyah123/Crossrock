@@ -9,13 +9,17 @@ public record EntityEnvironmentQueries(Molang.Queries fallback, BlockLookup bloc
         boolean hasTag(int x,int y,int z,String tag);
     }
     @Override public Object get(String query,List<Object> args) {
-        if(!query.equals("relative_block_has_any_tag")&&!query.equals("relative_block_has_all_tags"))return fallback.get(query,args);
+        boolean relative=query.startsWith("relative_");
+        boolean neighbor=query.startsWith("block_neighbor_");
+        if(!Set.of("relative_block_has_any_tag","relative_block_has_all_tags","block_has_any_tag","block_has_all_tags","block_neighbor_has_any_tag","block_neighbor_has_all_tags").contains(query))return fallback.get(query,args);
         if(args.size()<4)throw new IllegalArgumentException(query+" requires three offsets and one or more block tags");
-        double dx=offset(args.get(0)),dy=offset(args.get(1)),dz=offset(args.get(2));
+        double dx=offset(relative||neighbor?Molang.number(args.get(0)):Molang.number(args.get(0))-x),
+            dy=offset(relative||neighbor?Molang.number(args.get(1)):Molang.number(args.get(1))-y),
+            dz=offset(relative||neighbor?Molang.number(args.get(2)):Molang.number(args.get(2))-z);
         // Add before flooring: flooring offsets separately is wrong near block boundaries.
-        int bx=(int)Math.floor(x+dx),by=(int)Math.floor(y+dy),bz=(int)Math.floor(z+dz);
+        int bx=(int)Math.floor((neighbor?Math.floor(x):x)+dx),by=(int)Math.floor((neighbor?Math.floor(y):y)+dy),bz=(int)Math.floor((neighbor?Math.floor(z):z)+dz);
         var tags=args.subList(3,args.size());
-        boolean all=query.equals("relative_block_has_all_tags");
+        boolean all=query.endsWith("has_all_tags");
         boolean result=all?tags.stream().allMatch(tag->blocks.hasTag(bx,by,bz,tag.toString())):
             tags.stream().anyMatch(tag->blocks.hasTag(bx,by,bz,tag.toString()));
         return result?1d:0d;

@@ -6,6 +6,81 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BedrockPlayerRuntimeTest {
+    @Test void engineElytraHasBothWingsAndPackAnimationsOverrideDefaults() {
+        var geometries=new HashMap<String,BedrockGeometry>();BedrockPlayerDefaults.geometries(geometries);
+        var clips=new HashMap<String,BedrockAnimation>();BedrockPlayerDefaults.animations(clips);
+        var geometry=geometries.get("geometry.elytra");
+        assertEquals(12,BedrockGeometryMesh.bake(geometry,Map.of(),List.of()).size());
+        var pose=clips.get("animation.elytra.gliding").sample(0,new Molang.Context((q,a)->0d),Map.of());
+        assertEquals(-90,pose.get("left_wing").rotation().z());
+        assertEquals(90,pose.get("right_wing").rotation().z());
+        var custom=clips.get("animation.elytra.sneaking");
+        clips.put("animation.elytra.gliding",custom);BedrockPlayerDefaults.animations(clips);
+        assertSame(custom,clips.get("animation.elytra.gliding"));
+        assertSame(geometry,geometries.get("geometry.elytra"));
+    }
+    @Test void missingVanillaSleepClipLiesDownAndPackOverrideWins() {
+        var clips=new HashMap<String,BedrockAnimation>();BedrockPlayerDefaults.animations(clips);
+        var sleep=clips.get("animation.player.sleeping");
+        var pose=sleep.sample(0,new Molang.Context((name,args)->0d),Map.of());
+        assertEquals(-90,pose.get("root").rotation().x());
+        assertTrue(sleep.overridesPrevious());
+        var custom=new BedrockAnimation(JsonParser.parseString("{\"bones\":{\"root\":{\"rotation\":[45,0,0]}}}").getAsJsonObject());
+        clips.put("animation.player.sleeping",custom);BedrockPlayerDefaults.animations(clips);
+        assertSame(custom,clips.get("animation.player.sleeping"));
+    }
+    @Test void facialHelpersReadTheirOwnLocalBindPositionIncludingAdditionalLayers() {
+        var entity=BedrockClientEntity.parse(JsonParser.parseString("""
+            {"description":{"identifier":"minecraft:player","geometry":{"default":"body","face":"face"},
+             "animations":{"move":"move","read":"read","apply":"apply"},
+             "scripts":{"animate":["move","read","apply"]}}}
+            """).getAsJsonObject());
+        var body=BedrockGeometry.parse(JsonParser.parseString("""
+            {"bones":[{"name":"head","pivot":[0,24,0]}]}
+            """).getAsJsonObject());
+        var face=BedrockGeometry.parse(JsonParser.parseString("""
+            {"bones":[{"name":"head","pivot":[0,24,0]},
+              {"name":"face","parent":"head","pivot":[0,28,-4]},
+              {"name":"helper","parent":"face","pivot":[0,27,-4]},
+              {"name":"left_helper","parent":"helper","pivot":[-2,27,-4]},
+              {"name":"right_helper","parent":"helper","pivot":[2,27,-4]},
+              {"name":"mouth_helper","parent":"face","pivot":[0,28.5,-4]},
+              {"name":"left_eye","parent":"face","pivot":[-2,27,-4],
+               "cubes":[{"origin":[-2.5,26.5,-4],"size":[1,1,0],"uv":[0,0]}]},
+              {"name":"right_eye","parent":"face","pivot":[2,27,-4]},
+              {"name":"mouth","parent":"face","pivot":[0,26,-4]}]}
+            """).getAsJsonObject());
+        var move=new BedrockAnimation(JsonParser.parseString("""
+            {"loop":true,"bones":{"left_helper":{"position":["q.eye_offset",0,0]}}}
+            """).getAsJsonObject());
+        var read=new BedrockAnimation(JsonParser.parseString("""
+            {"loop":true,"bones":{
+              "left_helper":{"position":["v.left=this+2;",0,0]},
+              "right_helper":{"position":["v.right=this-2;",0,0]},
+              "mouth_helper":{"position":[0,"v.mouth=this-0.5;",0]}}}
+            """).getAsJsonObject());
+        var apply=new BedrockAnimation(JsonParser.parseString("""
+            {"loop":true,"bones":{"left_eye":{"position":["v.left",0,0]},
+              "right_eye":{"position":["v.right",0,0]},"mouth":{"position":[0,"v.mouth",0]}}}
+            """).getAsJsonObject());
+        var instance=new BedrockEntityInstance(entity);
+        for(double time:List.of(0d,.1,4d)) {
+            double offset=time<1?0:-.25;
+            var frame=instance.evaluateFrame((q,a)->q.equals("eye_offset")?offset:0d,Map.of(),Map.of("move",move,"read",read,"apply",apply),
+                Map.of(),OptionalInt.empty(),time,Map.of("body",body,"face",face));
+            assertEquals(offset,frame.poses().get("left_eye").position().x());
+            assertEquals(0,frame.poses().get("right_eye").position().x());
+            assertEquals(0,frame.poses().get("mouth").position().y());
+            var eye=BedrockGeometryMesh.bake(face,frame.poses(),List.of()).getFirst();
+            assertTrue(eye.vertices().stream().allMatch(v->v.x()>=-2.5+offset&&v.x()<=-1.5+offset),
+                "A bind origin must inform this, not translate the rendered eye a second time");
+        }
+    }
+    @Test void headYawIncludesBodyYawForWorldMovementAndInventoryMouseTracking() {
+        assertEquals(210,BedrockModelSpace.headYaw(180,30));
+        assertEquals(-100,BedrockModelSpace.headYaw(-90,-10));
+        assertEquals(0,BedrockModelSpace.headYaw(350,10)%360);
+    }
     @Test void cameraDepthReflectionPreservesUvAndOutwardWinding() {
         var original=BedrockGeometryMesh.bake(BedrockPlayerDefaults.humanoid(false),Map.of(),List.of());
         var reflected=BedrockGeometryMesh.reflectDepth(original);

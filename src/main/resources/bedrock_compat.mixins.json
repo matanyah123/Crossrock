@@ -2,6 +2,15 @@
   "required": true,
   "package": "dev.matanyah.bedrockcompat.mixin",
   "compatibilityLevel": "JAVA_25",
-  "mixins": ["ArmorStandStateMixin", "FormattingCharacterMixin"],
-  "injectors": {"defaultRequire": 1}
+  "mixins": [
+    "ArmorStandStateMixin",
+    "FormattingCharacterMixin",
+    "BehaviorPackRepositoryMixin",
+    "BehaviorWorldDataAccess",
+    "BehaviorRepositoryAccess",
+    "BehaviorSaveMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

@@ -28,6 +28,7 @@ public final class BedrockTranslationPipeline {
 			BedrockPack pack = configuredPack.pack();
 			if (pack.type() != BedrockPackType.RESOURCE && pack.type() != BedrockPackType.MIXED) continue;
 			for (BedrockResourceTranslator translator : translators) {
+				if (translator instanceof BedrockStackResourceTranslator) continue;
 				try {
 					translator.translate(pack, configuredPack.configuration(), store);
 				} catch (Exception exception) {
@@ -37,6 +38,9 @@ public final class BedrockTranslationPipeline {
 				}
 			}
 		}
+		for (var translator : translators) if (translator instanceof BedrockStackResourceTranslator stacked)
+			stacked.translateStack(packsInHighToLowPriorityOrder, store, errors);
+		BedrockParticleAtlas.generate(store);
 		return new GenerationResult(store.snapshot(), errors);
 	}
 

@@ -15,6 +15,6 @@ import java.util.function.Consumer;
 abstract class BuiltInPackSourceMixin {
 	@Inject(method = "loadPacks", at = @At("TAIL"))
 	private void bedrockCompat$addVirtualPack(Consumer<Pack> consumer, CallbackInfo callbackInfo) {
-		if ((Object) this instanceof ClientPackSource) VirtualCompatibilityPackProvider.loadPacks(consumer);
+		if ((Object) this instanceof ClientPackSource) {VirtualCompatibilityPackProvider.loadPacks(consumer);dev.matanyah.bedrockcompat.client.behavior.WorldResourcePacks.load(consumer);}
 	}
 }

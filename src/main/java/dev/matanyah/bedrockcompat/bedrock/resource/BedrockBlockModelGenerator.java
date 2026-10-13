@@ -27,11 +27,23 @@ final class BedrockBlockModelGenerator {
 
 	static void generate(Map<String, byte[]> content, GeneratedResourceSink sink) throws IOException {
 		byte[] metadata = content.get("blocks.json");
-		if (metadata == null) return;
 		try {
-			JsonObject blocks = JsonParser.parseString(new String(metadata, StandardCharsets.UTF_8)).getAsJsonObject();
+			JsonObject blocks = metadata == null ? new JsonObject()
+				: JsonParser.parseString(new String(metadata, StandardCharsets.UTF_8)).getAsJsonObject();
 			JsonObject terrain = terrainData(content);
-			generateGrassModel(blocks, terrain, sink);
+			// Texture-only packs can declare dedicated double-slab atlas tiles without
+			// repeating vanilla blocks.json. Explicit block face assignments win.
+			if (terrain != null) for (var tile : terrain.entrySet()) {
+				String name = tile.getKey();
+				if (!name.endsWith("_slab") || !name.contains("double_")
+					|| blocks.has(name) || blocks.has("minecraft:" + name)) continue;
+				JsonObject faces = new JsonObject();
+				faces.addProperty("up", terrain.has(name + "_top") ? name + "_top" : name);
+				faces.addProperty("down", terrain.has(name + "_bottom") ? name + "_bottom" : name);
+				faces.addProperty("side", terrain.has(name + "_side") ? name + "_side" : name);
+				JsonObject block = new JsonObject(); block.add("textures", faces); blocks.add(name, block);
+			}
+			generateGrassModel(blocks, terrain, content, sink);
 			generateBottomTopModel(blocks, terrain, "mycelium", "mycelium", sink);
 			generateBottomTopModel(blocks, terrain, "podzol", "podzol", sink);
 			generateBottomTopModel(blocks, terrain, "warped_nylium", "warped_nylium", sink);
@@ -47,8 +59,40 @@ final class BedrockBlockModelGenerator {
 			generateAzaleaShapes(blocks, terrain, sink);
 			generateFullBlockShape(blocks, terrain, sink);
 			patchHopperModels(blocks, terrain, sink);
+			generateDoubleSlabs(blocks, terrain, sink);
 		} catch (RuntimeException exception) {
 			throw new IOException("Invalid blocks.json", exception);
+		}
+	}
+
+	private static void generateDoubleSlabs(JsonObject blocks, JsonObject terrain, GeneratedResourceSink sink) throws IOException {
+		try (InputStream stream = BedrockBlockModelGenerator.class.getResourceAsStream(
+			"/bedrock_compat/mappings/java_26_2_slab_states.json")) {
+			if (stream == null) throw new IOException("Missing vanilla slab state mapping");
+			JsonObject states = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject();
+			for (var entry : blocks.entrySet()) {
+				String name = entry.getKey().replace("minecraft:", "");
+				if (!name.endsWith("_slab") || !name.contains("double_") || !entry.getValue().isJsonObject()) continue;
+				String slab = name.replace("double_", "");
+				if (name.equals("double_stone_slab")) slab = "smooth_stone_slab";
+				if (slab.equals("normal_stone_slab")) slab = "stone_slab";
+				if (!states.has(slab)) continue; // Never manufacture states for unknown Java blocks.
+				JsonElement textures = entry.getValue().getAsJsonObject().get("textures");
+				JsonObject slots = new JsonObject();
+				boolean complete = true;
+				for (String face : new String[]{"down", "up", "north", "south", "west", "east"}) {
+					String texture = javaTexture(textureForFace(textures, face), terrain);
+					if (texture == null) { complete = false; break; }
+					slots.addProperty(face, texture);
+				}
+				if (!complete) continue;
+				slots.addProperty("particle", slots.get("north").getAsString());
+				String model = "crossrock/" + slab + "_double";
+				putParentModel(sink, model, "minecraft:block/cube", slots);
+				JsonObject state = states.getAsJsonObject(slab).deepCopy();
+				state.getAsJsonObject("variants").getAsJsonObject("type=double").addProperty("model", "minecraft:block/" + model);
+				sink.put(Identifier.withDefaultNamespace("blockstates/" + slab + ".json"), state.toString().getBytes(StandardCharsets.UTF_8));
+			}
 		}
 	}
 
@@ -59,18 +103,33 @@ final class BedrockBlockModelGenerator {
 		return root.getAsJsonObject("texture_data");
 	}
 
-	private static void generateGrassModel(JsonObject blocks, JsonObject terrain, GeneratedResourceSink sink) {
+	private static void generateGrassModel(JsonObject blocks, JsonObject terrain, Map<String,byte[]> content, GeneratedResourceSink sink) {
 		JsonObject block = block(blocks, "grass");
-		if (block == null) return;
-		JsonElement textures = block.get("textures");
-		String down = javaTexture(textureForFace(textures, "down"), terrain);
-		String up = javaTexture(textureForFace(textures, "up"), terrain);
-		String side = javaTexture(textureForFace(textures, "side"), terrain);
+		var definition=terrain!=null&&terrain.has("grass_side")?terrain.get("grass_side"):new com.google.gson.JsonPrimitive("textures/blocks/grass_side");
+		var resolved=VanillaTextureTranslator.resolveTexture(definition,content);
+		if (block == null && resolved == null) return;
+		JsonElement textures = block==null?null:block.get("textures");
+		String down = block==null?"minecraft:block/dirt":javaTexture(textureForFace(textures, "down"), terrain);
+		String up = block==null?"minecraft:block/grass_block_top":javaTexture(textureForFace(textures, "up"), terrain);
+		String side = block==null?"minecraft:block/grass_block_side_overlay":javaTexture(textureForFace(textures, "side"), terrain);
 		if (down == null || up == null || side == null) return;
 		String model = """
 			{"parent":"minecraft:block/block","textures":{"particle":"%3$s","down":"%1$s","up":"%2$s","side":"%3$s"},"elements":[{"from":[0,0,0],"to":[16,16,16],"faces":{"down":{"texture":"#down","cullface":"down","tintindex":0},"up":{"texture":"#up","cullface":"up","tintindex":0},"north":{"texture":"#side","cullface":"north","tintindex":0},"south":{"texture":"#side","cullface":"south","tintindex":0},"west":{"texture":"#side","cullface":"west","tintindex":0},"east":{"texture":"#side","cullface":"east","tintindex":0}}}]}
 			""".formatted(down, up, side);
-		putModel(sink, "grass_block", model);
+		JsonObject layered = JsonParser.parseString(model).getAsJsonObject();
+		layered.getAsJsonObject("textures").addProperty("base", "minecraft:block/grass_block_side");
+		layered.getAsJsonObject("textures").addProperty("side", "minecraft:block/grass_block_side_overlay");
+		JsonObject faces = layered.getAsJsonArray("elements").get(0).getAsJsonObject().getAsJsonObject("faces");
+		faces.getAsJsonObject("down").remove("tintindex");
+		JsonObject base = new JsonObject();
+		base.add("from", JsonParser.parseString("[0,0,0]"));base.add("to", JsonParser.parseString("[16,16,16]"));
+		JsonObject baseFaces = new JsonObject();base.add("faces",baseFaces);
+		for (String face : new String[]{"north","south","east","west"}) {
+			JsonObject f=faces.getAsJsonObject(face).deepCopy();f.remove("tintindex");f.addProperty("texture","#base");baseFaces.add(face,f);
+		}
+		layered.getAsJsonArray("elements").add(base);
+		if(resolved!=null)GrassTintGeometry.clipOverlay(layered,resolved.data());
+		putModel(sink, "grass_block", layered.toString());
 	}
 
 	private static void generateBottomTopModel(JsonObject blocks, JsonObject terrain, String bedrockName,

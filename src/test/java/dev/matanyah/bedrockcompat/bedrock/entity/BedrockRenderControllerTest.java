@@ -6,6 +6,14 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BedrockRenderControllerTest {
+    @Test void omittedMaterialsUseTheAttachableDefault() {
+        var controller=new BedrockRenderController(JsonParser.parseString("""
+            {"geometry":"Geometry.default","textures":["Texture.default"]}
+            """).getAsJsonObject());
+        var selected=controller.select(new Molang.Context((q,a)->0d),Map.of(
+            "geometry.default","geometry.egg","texture.default","textures/egg","material.default","entity_emissive_alpha"));
+        assertEquals(List.of(new BedrockRenderController.Material("*","entity_emissive_alpha")),selected.materials());
+    }
     @Test void bareArraysConcatenateInOrderWithForwardReferencesDuplicatesAndEmptyMembers() {
         var controller=new BedrockRenderController(JsonParser.parseString("""
             {"arrays":{"textures":{

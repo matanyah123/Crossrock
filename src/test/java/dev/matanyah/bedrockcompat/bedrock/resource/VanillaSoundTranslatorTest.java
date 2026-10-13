@@ -25,6 +25,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VanillaSoundTranslatorTest {
+    @Test void namedAmbientSoundAliasResolvesDefinition() throws IOException {
+        Path directory=temporaryDirectory.resolve("ambient-audio");Files.createDirectories(directory.resolve("sounds"));
+        Files.writeString(directory.resolve("sounds/sound_definitions.json"),"{\"sound_definitions\":{\"example:wind\":{\"sounds\":[\"sounds/custom/wind\"]}}}");
+        Files.writeString(directory.resolve("sounds.json"),"{\"individual_named_sounds\":{\"wind.loop\":{\"sound\":\"example:wind\",\"volume\":0.5,\"pitch\":0.9}}}");
+        var result=pipeline().generate(List.of(pack(directory)));
+        var sounds=json(result.resources().resources().get(Identifier.fromNamespaceAndPath("bedrock_native","sounds.json")));
+        var sound=sounds.getAsJsonObject(dev.matanyah.bedrockcompat.bedrock.entity.NativeSoundEvents.id("wind.loop").getPath()).getAsJsonArray("sounds").get(0).getAsJsonObject();
+        assertEquals("minecraft:custom/wind",sound.get("name").getAsString());assertEquals(.5,sound.get("volume").getAsDouble());assertEquals(.9,sound.get("pitch").getAsDouble());
+    }
+    @Test void particleLevelEventAliasResolvesImportedDefinition() throws IOException {
+        Path directory=temporaryDirectory.resolve("particle-audio");Files.createDirectories(directory.resolve("sounds"));
+        Files.writeString(directory.resolve("sounds/sound_definitions.json"),"""
+            {"sound_definitions":{"example:pop":{"sounds":["sounds/custom/pop"]}}}
+            """);
+        Files.writeString(directory.resolve("sounds.json"),"""
+            {"individual_event_sounds":{"events":{"pop":{"sound":"example:pop","volume":0.4,"pitch":0.8}}}}
+            """);
+        var result=pipeline().generate(List.of(pack(directory)));
+        var sounds=json(result.resources().resources().get(Identifier.fromNamespaceAndPath("bedrock_native","sounds.json")));
+        var event=sounds.getAsJsonObject(dev.matanyah.bedrockcompat.bedrock.entity.NativeSoundEvents.id("pop").getPath());
+        var sound=event.getAsJsonArray("sounds").get(0).getAsJsonObject();
+        assertEquals("minecraft:custom/pop",sound.get("name").getAsString());
+        assertEquals(0.4,sound.get("volume").getAsDouble(),1e-6);
+        assertEquals(0.8,sound.get("pitch").getAsDouble(),1e-6);
+    }
     @Test void entityLocalMuteDoesNotLeakIntoOtherSpecies() throws IOException {
         Path directory=temporaryDirectory.resolve("muted");Files.createDirectories(directory.resolve("sounds"));
         Files.writeString(directory.resolve("sounds/sound_definitions.json"),"{\"sound_definitions\":{}}");

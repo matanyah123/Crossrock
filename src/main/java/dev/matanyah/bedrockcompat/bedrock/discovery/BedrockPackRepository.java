@@ -1,31 +1,31 @@
 package dev.matanyah.bedrockcompat.bedrock.discovery;
 
 import com.google.gson.JsonParseException;
-import dev.matanyah.bedrockcompat.BedrockCompat;
 import dev.matanyah.bedrockcompat.bedrock.format.BedrockManifestParser;
 import dev.matanyah.bedrockcompat.bedrock.model.BedrockPack;
 import dev.matanyah.bedrockcompat.bedrock.model.PackLoadResult;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.FileVisitResult;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 
 public final class BedrockPackRepository {
 	private static final int MAX_MANIFEST_BYTES = 1024 * 1024;
@@ -38,6 +38,9 @@ public final class BedrockPackRepository {
 
 	private final Path addonsDirectory;
 	private final BedrockManifestParser parser;
+	private record Stamp(long size, FileTime modified, Object fileKey) {}
+	private record Cached(List<Stamp> stamps, List<PackLoadResult> results) {}
+	private static final Map<Path, Cached> METADATA_CACHE = new LinkedHashMap<>(64, .75f, true);
 
 	public BedrockPackRepository(Path gameDirectory) {
 		this(gameDirectory.resolve("addons"), new BedrockManifestParser());
@@ -48,6 +51,10 @@ public final class BedrockPackRepository {
 		this.parser = parser;
 	}
 
+	public static BedrockPackRepository atDirectory(Path directory) {
+		return new BedrockPackRepository(directory, new BedrockManifestParser());
+	}
+
 	public Path addonsDirectory() {
 		return addonsDirectory;
 	}
@@ -56,23 +63,56 @@ public final class BedrockPackRepository {
 		List<PackLoadResult> results = new ArrayList<>();
 		try {
 			Files.createDirectories(addonsDirectory);
-			Set<Path> manifests = new HashSet<>();
-			try (Stream<Path> paths = Files.walk(addonsDirectory, DIRECTORY_SCAN_DEPTH)) {
-				paths.filter(Files::isRegularFile).forEach(path -> {
+			Files.walkFileTree(addonsDirectory, Set.of(), DIRECTORY_SCAN_DEPTH, new SimpleFileVisitor<>() {
+				@Override public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
+					Path manifest = directory.resolve("manifest.json");
+					if (Files.isRegularFile(manifest)) {
+						results.addAll(cached(manifest, false, () -> List.of(scanManifestFile(manifest))));
+						// An unpacked pack's assets are not discovery inputs.
+						return FileVisitResult.SKIP_SUBTREE;
+					}
+					return FileVisitResult.CONTINUE;
+				}
+				@Override public FileVisitResult visitFile(Path path, BasicFileAttributes attributes) {
 					String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-					if (name.equals("manifest.json")) manifests.add(path);
-					else if (name.endsWith(".mcpack") || name.endsWith(".mcaddon")) results.addAll(scanArchive(path));
-				});
-			}
-			manifests.stream().sorted().map(this::scanManifestFile).forEach(results::add);
+					if (attributes.isRegularFile() && name.equals("manifest.json"))
+						results.addAll(cached(path, false, () -> List.of(scanManifestFile(path))));
+					else if (attributes.isRegularFile() && (name.endsWith(".mcpack") || name.endsWith(".mcaddon")))
+						results.addAll(cached(path, true, () -> scanArchive(path)));
+					return FileVisitResult.CONTINUE;
+				}
+			});
 		} catch (IOException | UncheckedIOException | SecurityException exception) {
-			BedrockCompat.LOGGER.error("Could not scan add-ons directory {}", addonsDirectory, exception);
 			results.add(PackLoadResult.failed(addonsDirectory, "", concise(exception)));
 		}
 		results.sort(Comparator.comparing(PackLoadResult::displayName, String.CASE_INSENSITIVE_ORDER)
 			.thenComparing(result -> result.source().toString())
 			.thenComparing(PackLoadResult::locationInSource));
 		return List.copyOf(results);
+	}
+
+	/** Shared across screen instances; only metadata file stamps invalidate unpacked packs. */
+	private List<PackLoadResult> cached(Path path, boolean archive, java.util.function.Supplier<List<PackLoadResult>> load) {
+		Path key = path.toAbsolutePath().normalize();
+		try {
+			List<Stamp> stamps = new ArrayList<>();
+			for (Path input : archive ? List.of(path) : List.of(path, path.resolveSibling("pack_icon.png"), path.resolveSibling("texts/en_US.lang"))) {
+				try {
+					var attributes = Files.readAttributes(input, BasicFileAttributes.class);
+					stamps.add(new Stamp(attributes.size(), attributes.lastModifiedTime(), attributes.fileKey()));
+				} catch (java.nio.file.NoSuchFileException missing) { stamps.add(new Stamp(-1, FileTime.fromMillis(0), null)); }
+			}
+			synchronized (METADATA_CACHE) {
+				var existing = METADATA_CACHE.get(key);
+				if (existing != null && existing.stamps().equals(stamps)) return existing.results();
+			}
+			var loaded = List.copyOf(load.get());
+			synchronized (METADATA_CACHE) {
+				METADATA_CACHE.put(key, new Cached(List.copyOf(stamps), loaded));
+				while (METADATA_CACHE.size() > 64) METADATA_CACHE.remove(METADATA_CACHE.keySet().iterator().next());
+			}
+			return loaded;
+		} catch (IOException | SecurityException ignored) { return load.get(); }
 	}
 
 	private PackLoadResult scanManifestFile(Path manifest) {
@@ -125,21 +165,25 @@ public final class BedrockPackRepository {
 
 	private List<PackLoadResult> scanNestedArchive(Path outerArchive, String nestedName, byte[] bytes) throws IOException {
 		Map<String, byte[]> selected = new HashMap<>();
-		int count = 0;
-		try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(bytes))) {
-			ZipEntry entry;
-			while ((entry = input.getNextEntry()) != null) {
-				if (++count > MAX_ARCHIVE_ENTRIES) throw new IOException("Nested archive contains too many entries");
-				String name = safeEntryName(entry.getName());
-				String lowerName = name.toLowerCase(Locale.ROOT);
-				if (!entry.isDirectory() && (isManifest(name) || lowerName.endsWith("pack_icon.png")
-					|| lowerName.endsWith("texts/en_us.lang"))) {
-					int limit = isManifest(name) ? MAX_MANIFEST_BYTES
-						: lowerName.endsWith(".lang") ? MAX_LANGUAGE_BYTES : MAX_ICON_BYTES;
-					selected.put(name, readLimited(input, limit));
+		// ZipInputStream has to inflate every skipped entry to reach the next one.
+		// A central-directory reader can seek straight to the few metadata entries.
+		Path temporary = Files.createTempFile("crossrock-metadata-", ".mcpack");
+		try {
+			Files.write(temporary, bytes);
+			try (ZipFile zip = new ZipFile(temporary.toFile())) {
+				for (var item : safeEntries(zip).entrySet()) {
+					ZipEntry entry = item.getValue();
+					String name = item.getKey();
+					String lowerName = name.toLowerCase(Locale.ROOT);
+					if (!entry.isDirectory() && (isManifest(name) || lowerName.endsWith("pack_icon.png")
+						|| lowerName.endsWith("texts/en_us.lang"))) {
+						int limit = isManifest(name) ? MAX_MANIFEST_BYTES
+							: lowerName.endsWith(".lang") ? MAX_LANGUAGE_BYTES : MAX_ICON_BYTES;
+						selected.put(name, readLimited(() -> zip.getInputStream(entry), limit));
+					}
 				}
 			}
-		}
+		} finally { Files.deleteIfExists(temporary); }
 		List<String> manifests = selected.keySet().stream().filter(BedrockPackRepository::isManifest).sorted().toList();
 		if (manifests.size() > MAX_PACKS_PER_ARCHIVE) throw new IOException("Nested archive contains too many manifests");
 		List<PackLoadResult> results = new ArrayList<>();
@@ -177,7 +221,6 @@ public final class BedrockPackRepository {
 		Map<String, String> translations) {
 		try {
 			BedrockPack pack = parser.parse(manifest, source, location, icon, translations);
-			if (!pack.warnings().isEmpty()) BedrockCompat.LOGGER.warn("Loaded {} with warnings: {}", source, pack.warnings());
 			return PackLoadResult.loaded(pack);
 		} catch (JsonParseException | IllegalArgumentException exception) {
 			return failure(source, location, exception);
@@ -185,8 +228,6 @@ public final class BedrockPackRepository {
 	}
 
 	private PackLoadResult failure(Path source, String location, Exception exception) {
-		BedrockCompat.LOGGER.warn("Could not load Bedrock pack {}{}", source,
-			location.isBlank() ? "" : "!/" + location, exception);
 		return PackLoadResult.failed(source, location, concise(exception));
 	}
 

@@ -40,5 +40,6 @@ public final class BedrockEntityIds {
         return Optional.ofNullable(BOATS.get(javaId));
     }
     public static String bedrock(String javaId){return boat(javaId).map(Boat::identifier).orElseGet(()->IDS.getOrDefault(javaId,javaId));}
+    public static String javaIdentifier(String bedrockId){return IDS.entrySet().stream().filter(e->e.getValue().equals(bedrockId)).map(Map.Entry::getKey).findFirst().orElse(bedrockId);}
     public static float bodyYaw(String javaId,float javaYaw){return BOATS.containsKey(javaId)?javaYaw+90:javaYaw;}
 }

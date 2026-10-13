@@ -33,6 +33,91 @@ class BedrockTranslationPipelineTest {
 	@TempDir
 	Path temporaryDirectory;
 
+    @Test
+    void translatesItemAtlasAliasesWithoutFlatteningAuxVariants() throws Exception {
+        Path folder = temporaryDirectory.resolve("item-atlas");
+        Files.createDirectories(folder.resolve("textures/art"));
+        Files.write(folder.resolve("textures/art/icon.png"), solidPng(0xff12ab34));
+        Files.writeString(folder.resolve("textures/item_texture.json"), """
+            {"texture_data":{"diamond":{"textures":"textures/art/icon"},
+             "stick":{"textures":["textures/art/icon"]},
+             "apple":{"textures":["textures/art/icon","textures/art/missing"]},
+             "emerald":{"textures":"textures/art/missing"}}}
+            """);
+        var result = pipeline().generate(List.of(pack("Atlas","atlas",folder,"manifest.json")));
+        assertTrue(result.errors().isEmpty(), result.errors().toString());
+        assertArrayEquals(solidPng(0xff12ab34), result.resources().resources().get(id("textures/item/diamond.png")));
+        assertArrayEquals(solidPng(0xff12ab34), result.resources().resources().get(id("textures/item/stick.png")));
+        assertFalse(result.resources().resources().containsKey(id("textures/item/apple.png")));
+        assertFalse(result.resources().resources().containsKey(id("textures/item/emerald.png")));
+    }
+
+    @Test
+    void translatesCubeFacesWildcardAndSeparateCarriedTextures() throws Exception {
+        Path folder = temporaryDirectory.resolve("cube-assets");
+        Files.createDirectories(folder.resolve("textures/art"));
+        Files.write(folder.resolve("textures/art/world.png"), solidPng(0xffaabbcc));
+        Files.write(folder.resolve("textures/art/held.png"), solidPng(0xff123456));
+        Files.writeString(folder.resolve("textures/terrain_texture.json"), """
+            {"texture_data":{"world":{"textures":"textures/art/world"},"held":{"textures":"textures/art/held"}}}
+            """);
+        Files.writeString(folder.resolve("textures/flipbook_textures.json"), """
+            [{"flipbook_texture":"textures/art/world","ticks_per_frame":7,"frames":[0]}]
+            """);
+        Files.writeString(folder.resolve("blocks.json"), """
+            {"minecraft:iron_block":{"textures":{"*":"world","up":"held"},"carried_textures":"held"},
+             "diamond_block":{"textures":"world"},"oak_stairs":{"textures":"world"},
+             "gold_block":{"textures":{"up":"world"}},"fixture:unknown":{"textures":"world"}}
+            """);
+        var result = pipeline().generate(List.of(pack("Cubes","cubes",folder,"manifest.json")));
+        assertTrue(result.errors().isEmpty(), result.errors().toString());
+        var model = com.google.gson.JsonParser.parseString(text(result,"models/block/iron_block.json")).getAsJsonObject();
+        assertEquals("minecraft:block/crossrock_assets/textures/art/held",model.getAsJsonObject("textures").get("up").getAsString());
+        assertEquals("minecraft:block/crossrock_assets/textures/art/world",model.getAsJsonObject("textures").get("north").getAsString());
+        assertTrue(text(result,"textures/block/crossrock_assets/textures/art/world.png.mcmeta").contains("\"frametime\":7"));
+        assertTrue(text(result,"items/iron_block.json").contains("block/crossrock_carried/iron_block"));
+        assertTrue(text(result,"models/block/crossrock_carried/iron_block.json").contains("minecraft:block/cube"));
+        assertTrue(result.resources().resources().containsKey(id("models/block/diamond_block.json")));
+        for (String path : List.of("models/block/oak_stairs.json","models/block/gold_block.json","items/diamond_block.json","blockstates/iron_block.json"))
+            assertFalse(result.resources().resources().containsKey(id(path)), path);
+    }
+
+    @Test
+    void itemAtlasUsesSelectedSubpackAndHigherPackPriority() throws Exception {
+        Path lower = temporaryDirectory.resolve("lower-atlas");
+        Path higher = temporaryDirectory.resolve("higher-atlas");
+        for (Path folder : List.of(lower,higher)) {
+            Files.createDirectories(folder.resolve("textures/art"));
+            Files.writeString(folder.resolve("textures/item_texture.json"), "{\"texture_data\":{\"diamond\":{\"textures\":\"textures/art/icon\"}}}");
+            Files.write(folder.resolve("textures/art/icon.png"), solidPng(0xffaabbcc));
+        }
+        Files.createDirectories(higher.resolve("subpacks/selected/textures/art"));
+        Files.write(higher.resolve("subpacks/selected/textures/art/icon.png"),solidPng(0xff102030));
+        var result = pipeline().generateConfigured(List.of(
+            new BedrockTranslationPipeline.ConfiguredPack(pack("Higher","higher",higher,"manifest.json"),new BedrockPackConfiguration(Optional.of("selected"),Map.of())),
+            new BedrockTranslationPipeline.ConfiguredPack(pack("Lower","lower",lower,"manifest.json"),new BedrockPackConfiguration(Optional.empty(),Map.of()))));
+        assertArrayEquals(solidPng(0xff102030),result.resources().resources().get(id("textures/item/diamond.png")));
+    }
+
+	@Test
+	void readsSelectedSubpackBlockAndPresentationMetadata() throws Exception {
+		Path folder=temporaryDirectory.resolve("presentation");
+		Files.createDirectories(folder.resolve("subpacks/test/textures/ui"));
+		Files.writeString(folder.resolve("subpacks/test/blocks.json"),"{\"oak_double_slab\":{\"textures\":\"custom_double\"}}");
+		Files.writeString(folder.resolve("subpacks/test/splashes.json"),"{\"splashes\":[\"Subpack splash\"]}");
+		Files.write(folder.resolve("subpacks/test/textures/ui/heart.png"),png(9,9));
+		Files.writeString(folder.resolve("subpacks/test/textures/ui/heart.json"),"{\"base_size\":[9,9]}");
+		var selected=pack("Presentation","presentation",folder,"manifest.json");
+		var configuration=new BedrockPackConfiguration(Optional.of("test"),Map.of());
+		var pipeline=new BedrockTranslationPipeline(List.of(new VanillaTextureTranslator(new BedrockPackContentReader()),
+			new BedrockPresentationTranslator(new BedrockPackContentReader())));
+		var result=pipeline.generateConfigured(List.of(new BedrockTranslationPipeline.ConfiguredPack(selected,configuration)));
+		assertTrue(result.errors().isEmpty(),result.errors().toString());
+		assertEquals("Subpack splash",text(result,"texts/splashes.txt"));
+		assertTrue(result.resources().resources().containsKey(Identifier.withDefaultNamespace("blockstates/oak_slab.json")));
+		assertTrue(result.resources().resources().containsKey(Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/full.png")));
+	}
+
 	@Test
 	void loadsBundledGeyserTextureMappings() {
 		assertTrue(TexturePathMappings.mappingCount() > 1_000);
@@ -40,6 +125,47 @@ class BedrockTranslationPipelineTest {
 			VanillaTextureTranslator.mapPath("textures/blocks/planks_acacia.png"));
 		assertEquals("textures/item/baked_potato.png",
 			VanillaTextureTranslator.mapPath("textures/items/potato_baked.png"));
+	}
+
+	@Test
+	void discoversAttachableFoldersAndHigherSelectedPackReplacesDefinition() throws IOException {
+		Path low=temporaryDirectory.resolve("props-low"),high=temporaryDirectory.resolve("props-high");
+		for(Path dir:List.of(low,high)) {
+			Files.createDirectories(dir.resolve("attachables"));
+			Files.writeString(dir.resolve("attachables/arbitrary-name.json"),
+				"{\"minecraft:attachable\":{\"description\":{\"identifier\":\"example:prop\",\"geometry\":{\"default\":\"geometry."
+				+ (dir.equals(high)?"high":"low") + "\"}}}}");
+		}
+		var pipeline=new BedrockTranslationPipeline(List.of(new NativeEntityResourceTranslator(new BedrockPackContentReader())));
+		var result=pipeline.generate(List.of(pack("High","high",high,"manifest.json"),pack("Low","low",low,"manifest.json")));
+		assertTrue(result.errors().isEmpty());
+		String key=java.util.HexFormat.of().formatHex("attachable.example:prop".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var json=result.resources().resources().get(Identifier.fromNamespaceAndPath("bedrock_native","entity_definitions/"+key+".json"));
+		assertTrue(new String(json,java.nio.charset.StandardCharsets.UTF_8).contains("geometry.high"));
+		assertEquals(1,result.resources().resources().size());
+	}
+
+	@Test
+	void mapsStandardArmorLayersAndPreservesPackPriority() throws IOException {
+		for (String material : List.of("chain", "diamond", "gold", "iron", "netherite")) {
+			String javaMaterial = material.equals("chain") ? "chainmail" : material;
+			assertEquals("textures/entity/equipment/humanoid/" + javaMaterial + ".png",
+				VanillaTextureTranslator.mapPath("textures/models/armor/" + material + "_1.png"));
+			assertEquals("textures/entity/equipment/humanoid_leggings/" + javaMaterial + ".png",
+				VanillaTextureTranslator.mapPath("textures/models/armor/" + material + "_2.png"));
+		}
+		Path low = temporaryDirectory.resolve("armor-low"), high = temporaryDirectory.resolve("armor-high");
+		Files.createDirectories(low.resolve("textures/models/armor"));
+		Files.createDirectories(high.resolve("textures/models/armor"));
+		byte[] lowImage = png(64, 32), highImage = png(128, 64);
+		Files.write(low.resolve("textures/models/armor/diamond_1.png"), lowImage);
+		Files.write(low.resolve("textures/models/armor/diamond_2.png"), lowImage);
+		Files.write(high.resolve("textures/models/armor/diamond_1.png"), highImage);
+		var result = pipeline().generate(List.of(pack("High", "high", high, "manifest.json"),
+			pack("Low", "low", low, "manifest.json")));
+		assertArrayEquals(highImage, result.resources().resources().get(id("textures/entity/equipment/humanoid/diamond.png")));
+		assertArrayEquals(lowImage, result.resources().resources().get(id("textures/entity/equipment/humanoid_leggings/diamond.png")));
+		assertEquals(List.of(), result.errors());
 	}
 
 	@Test
@@ -168,7 +294,12 @@ class BedrockTranslationPipelineTest {
 		var result = pipeline().generate(List.of(pack("Faces", "faces", packDirectory, "manifest.json")));
 		byte[] model = result.resources().resources().get(id("models/block/grass_block.json"));
 
-		assertTrue(new String(model).contains("\"side\":\"minecraft:block/grass_block_top\""));
+		assertTrue(new String(model).contains("\"side\":\"minecraft:block/grass_block_side_overlay\""));
+		var parsed = com.google.gson.JsonParser.parseString(new String(model)).getAsJsonObject();
+		var faces = parsed.getAsJsonArray("elements").get(0).getAsJsonObject().getAsJsonObject("faces");
+		assertFalse(faces.getAsJsonObject("down").has("tintindex"));
+		assertFalse(parsed.getAsJsonArray("elements").get(1).getAsJsonObject()
+			.getAsJsonObject("faces").getAsJsonObject("north").has("tintindex"));
 		assertTrue(new String(model).contains("\"tintindex\":0"));
 	}
 
@@ -420,6 +551,13 @@ class BedrockTranslationPipelineTest {
 		}
 		try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
 			ImageIO.write(image, "png", output);
+			return output.toByteArray();
+		}
+	}
+
+	private static byte[] png(int width, int height) throws IOException {
+		try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+			ImageIO.write(new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB), "png", output);
 			return output.toByteArray();
 		}
 	}

@@ -22,6 +22,39 @@ class BedrockPackRepositoryTest {
 	@TempDir
 	Path temporaryDirectory;
 
+	@Test void unpackedDiscoveryStopsAtPackRootAndCachesOnlyMetadataInputs() throws IOException {
+		Path addons = temporaryDirectory.resolve("addons");
+		Path pack = addons.resolve("pack");
+		write(pack.resolve("manifest.json"), manifest("Cached", "resources"));
+		write(pack.resolve("textures/unrelated.mcpack"), "Not an archive; not a discovery input");
+		var first = repository(addons).scan();
+		assertEquals(1, first.size(), "Asset folders must not be traversed for discovery");
+		write(pack.resolve("textures/changed.json"), "{broken");
+		var second = repository(addons).scan();
+		org.junit.jupiter.api.Assertions.assertSame(first.getFirst(), second.getFirst(), "Asset changes must not reread metadata");
+		write(pack.resolve("pack_icon.png"), "new icon bytes");
+		var third = repository(addons).scan();
+		org.junit.jupiter.api.Assertions.assertNotSame(second.getFirst(), third.getFirst(), "Icon changes must invalidate metadata");
+		write(pack.resolve("manifest.json"), manifest("Changed metadata", "resources"));
+		assertEquals("Changed metadata", repository(addons).scan().getFirst().displayName());
+	}
+
+	@Test void nestedDiscoveryDoesNotInflateUnrelatedAssets() throws IOException {
+		Path addons = temporaryDirectory.resolve("addons");
+		Files.createDirectories(addons);
+		var entries = new java.util.LinkedHashMap<String, Object>();
+		entries.put("textures/unrelated.png", new byte[8192]);
+		entries.put("manifest.json", manifest("Metadata only", "resources"));
+		byte[] nested = zipBytes(entries);
+		var header = java.nio.ByteBuffer.wrap(nested).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+		int dataOffset = 30 + Short.toUnsignedInt(header.getShort(26)) + Short.toUnsignedInt(header.getShort(28));
+		nested[dataOffset] = (byte)0xff; // Corrupt irrelevant DEFLATE data, retaining the central directory.
+		writeZipBytes(addons.resolve("nested.mcaddon"), Map.of("nested.mcpack", nested));
+		var first = repository(addons).scan();
+		assertEquals("Metadata only", first.getFirst().pack().orElseThrow().displayName());
+		org.junit.jupiter.api.Assertions.assertSame(first.getFirst(), repository(addons).scan().getFirst());
+	}
+
 	@Test
 	void discoversUnpackedPackAndMalformedPack() throws IOException {
 		Path addons = temporaryDirectory.resolve("addons");

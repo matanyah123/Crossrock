@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "scope": "foundational infrastructure",
+  "compatibility_certified": false,
+  "villager_news_gameplay_compatible": false,
+  "areas": [
+    {
+      "area": "Discovery/import",
+      "status": "Implemented",
+      "evidence_and_limits": "Directories, mcpack/mcaddon, icons, UUID versions and dependency closure; atomic bounded imports."
+    },
+    {
+      "area": "Per-world selection",
+      "status": "Implemented",
+      "evidence_and_limits": "Individual virtual datapacks; separate native Java/BP tabs; Create World and offline Edit World selections in level.dat."
+    },
+    {
+      "area": "Server ownership",
+      "status": "Implemented",
+      "evidence_and_limits": "Per-server immutable profiles, reload validation/rollback, subsystem prepare/open/tick/close, atomic namespaced world state."
+    },
+    {
+      "area": "Logical registration",
+      "status": "Foundation implemented",
+      "evidence_and_limits": "Permanent actor/item Java hosts resolve world-owned logical Bedrock IDs; typed properties and item identity persist. Component semantics remain deferred."
+    },
+    {
+      "area": "Networking",
+      "status": "Implemented",
+      "evidence_and_limits": "Versioned server-scoped offer/request/chunks/ack, hashes, bounded decoding, cache, generation checks, timeout and disconnect cleanup."
+    },
+    {
+      "area": "Client resources",
+      "status": "Implemented",
+      "evidence_and_limits": "Individual required world RPs reuse translation pipeline; logical actor/item rendering and synchronized client properties."
+    },
+    {
+      "area": "Integrated/dedicated/multiplayer",
+      "status": "Fixture tested",
+      "evidence_and_limits": "Integrated lifecycle and loopback dedicated connect/reconnect/removal tested; multi-client WAN and cross-version acceptance remain open."
+    },
+    {
+      "area": "Script API/gameplay",
+      "status": "Deferred",
+      "evidence_and_limits": "No JavaScript VM, Script API endpoints, component/AI/event execution, Bedrock commands/functions, recipes/trades/loot or worldgen implementation."
+    }
+  ]
+}

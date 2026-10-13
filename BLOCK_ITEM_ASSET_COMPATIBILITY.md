@@ -1,5 +1,7 @@
 # Block and item asset compatibility — 2026-10-13
 
+Historical batch scope: the [state/culling/item continuation](BLOCK_ASSET_STATE_COMPATIBILITY.md) supersedes the remaining-gap statements below for mapped states, world transforms, bounded UV lock, GUI fitting, authored culling and item icon definitions.
+
 This batch extends the existing vanilla texture translator with two executable resource-pack paths. It does not register blocks/items or interpret behavior-pack components.
 
 ## Implemented subset
@@ -16,7 +18,11 @@ No asset names or pack names select these paths. Eligibility is determined from 
 
 See `BEDROCK_RP_COVERAGE.json` → `block_item_asset_pass` for commands, results and logs. Passing model checks establish working Java rendering paths; they do not establish Bedrock visual parity.
 
-## Remaining work
+## Subsequent static geometry pass
+
+The later [static geometry/material/display batch](BLOCK_GEOMETRY_COMPATIBILITY.md) adds cross-pack static block geometry bindings, material methods, independent block-item visuals and eight authored display contexts. It supersedes the corresponding unsupported statements in the original batch below. General non-block item definitions and atlas index/weighted selectors remain unsupported.
+
+## Original batch remaining work
 
 Multi-index/aux and weighted atlas selectors, shared pack-stack atlas resolution, legacy RP item definitions, custom item geometry and authored `item_display_transforms` remain unsupported. Rotated/multipart/tinted block models, custom block geometry/material bindings, culling, sounds and isotropic rendering are outside this batch. Existing specialized block translators remain available separately.
 

@@ -46,6 +46,7 @@ public final class VanillaTextureTranslator implements BedrockResourceTranslator
 				? normalized.substring(0, normalized.length() - 4) + ".png" : normalized;
 			byte[] image = normalized.endsWith(".tga") ? decodeTga(entry.getValue()) : entry.getValue();
 			if (image == null) continue;
+			if (ExplosionTextureSplitter.translate(mappingPath, image, sink)) continue;
 			BedTextureSplitter.translate(mappingPath, image, sink);
 			if (ChestTextureSplitter.translate(mappingPath, image, sink)) continue;
 			for (String javaPath : TexturePathMappings.map(mappingPath)) {
@@ -53,7 +54,9 @@ public final class VanillaTextureTranslator implements BedrockResourceTranslator
 			}
 		}
 		translateTerrainAliases(content, animations, sink);
+		translateItemAliases(content, animations, sink);
 		BedrockBlockModelGenerator.generate(content, sink);
+		BedrockCubeAssetTranslator.translate(content, animations, sink);
 	}
 
 	private static void translateTerrainAliases(Map<String, byte[]> content, Map<String, byte[]> animations,
@@ -77,12 +80,39 @@ public final class VanillaTextureTranslator implements BedrockResourceTranslator
 		}
 	}
 
-	private static ResolvedTexture resolveTexture(JsonElement definition, Map<String, byte[]> content) {
+    private static void translateItemAliases(Map<String, byte[]> content, Map<String, byte[]> animations,
+                                             GeneratedResourceSink sink) throws IOException {
+        byte[] metadata = content.get("textures/item_texture.json");
+        if (metadata == null) return;
+        try {
+            JsonObject atlas = JsonParser.parseString(new String(metadata, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject tiles = atlas.getAsJsonObject("texture_data");
+            if (tiles == null) return;
+            for (var tile : tiles.entrySet()) {
+                if (!tile.getValue().isJsonObject()) continue;
+                JsonElement path = tile.getValue().getAsJsonObject().get("textures");
+                if (path != null && path.isJsonArray() && path.getAsJsonArray().size() == 1) path = path.getAsJsonArray().get(0);
+                // Multi-index aliases need an aux selector; preserve Java rather than flattening them.
+                if (path == null || !path.isJsonPrimitive() || !path.getAsJsonPrimitive().isString()) continue;
+                ResolvedTexture image = resolveTexture(path, content);
+                if (image == null || image.data().length == 0) continue;
+                for (String target : TexturePathMappings.map("textures/items/" + tile.getKey() + ".png")) {
+                    if (target.startsWith("textures/item/")) putTexture(sink, target, image.data(), animations.get(image.path()));
+                }
+            }
+        } catch (RuntimeException ex) { throw new IOException("Invalid textures/item_texture.json", ex); }
+    }
+
+	static ResolvedTexture resolveTexture(JsonElement definition, Map<String, byte[]> content) {
 		if (definition == null || definition.isJsonNull()) return null;
 		if (definition.isJsonPrimitive() && definition.getAsJsonPrimitive().isString()) {
 			String path = definition.getAsString().replace('\\', '/').toLowerCase(Locale.ROOT);
-			if (!path.endsWith(".png")) path += ".png";
+			if (!path.endsWith(".png")&&!path.endsWith(".tga")) {
+				String stem=path;path += ".png";
+				if(!content.containsKey(path)||content.get(path).length==0)path=stem+".tga";
+			}
 			byte[] data = content.get(path);
+			if(data!=null&&path.endsWith(".tga"))try{data=decodeTga(data);}catch(IOException exception){return null;}
 			return data == null ? null : new ResolvedTexture(path, data);
 		}
 		if (definition.isJsonArray()) {
@@ -100,7 +130,7 @@ public final class VanillaTextureTranslator implements BedrockResourceTranslator
 		return null;
 	}
 
-	private static Map<String, byte[]> parseFlipbookAnimations(Map<String, byte[]> content) throws IOException {
+	static Map<String, byte[]> parseFlipbookAnimations(Map<String, byte[]> content) throws IOException {
 		Map<String, byte[]> animations = new LinkedHashMap<>(DEFAULT_FLIPBOOK_ANIMATIONS);
 		byte[] metadata = content.get("textures/flipbook_textures.json");
 		if (metadata == null) return Map.copyOf(animations);
@@ -279,7 +309,7 @@ public final class VanillaTextureTranslator implements BedrockResourceTranslator
 			| (bytes[offset + 2] & 0xFF) << 8 | bytes[offset + 3] & 0xFF;
 	}
 
-	private record ResolvedTexture(String path, byte[] data) {
+	static record ResolvedTexture(String path, byte[] data) {
 	}
 
 	static String mapPath(String path) {

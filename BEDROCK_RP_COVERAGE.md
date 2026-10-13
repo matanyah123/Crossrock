@@ -1,12 +1,12 @@
 # Crossrock Bedrock resource-pack compatibility audit
 
-Audit date: 2026-10-13. Source: current working tree at HEAD `4f7eec71997d5fd5909a88a4cd91db1f67ca882f` **plus existing uncommitted changes**. Updated after the particle, partial Molang, environment, client-entity and partial JSON UI and block/item asset implementation/validation passes; other API families retain the earlier audit findings. See [particle pass](PARTICLE_COMPATIBILITY.md) for the 40-contract evidence matrix and remaining discrepancies.
+Audit date: 2026-10-13. Source: current working tree at HEAD `623f4de778022987388e4de0521643fa4725d1f8` **plus existing uncommitted changes**. Updated after the particle, partial Molang, environment, client-entity and partial JSON UI and block/item asset implementation/validation passes; other API families retain the earlier audit findings. See [particle pass](PARTICLE_COMPATIBILITY.md) for the 40-contract evidence matrix and remaining discrepancies.
 
 ## Verdict
 
 Crossrock is **not feature-complete for the documented Bedrock resource-pack API**. It is a substantial native entity/animation renderer plus a curated asset translator. Entire presentation families have no active interpreter. Parsing and a working Actions & Stuff scene are not API parity.
 
-The headline inventory covers 182 capability/component contracts. 144 have a functional path, often partial; 137 have mapped targeted unit/client-subset validation. **Zero are certified substantially complete under the requested cross-engine/edge-case standard.** This conservative completeness lower bound does not mean nothing works: it means no full contract has been demonstrated against that standard.
+The headline inventory covers 182 capability/component contracts. 149 have a functional path, often partial; 142 have mapped targeted unit/client-subset validation. **Zero are certified substantially complete under the requested cross-engine/edge-case standard.** This conservative completeness lower bound does not mean nothing works: it means no full contract has been demonstrated against that standard.
 
 Primary reference: [Minecraft Creator documentation](https://learn.microsoft.com/en-us/minecraft/creator/). The audit also reads its [official source pinned at 4186dc4ec84c](https://github.com/MicrosoftDocs/minecraft-creator/tree/4186dc4ec84c8980fc25d89c26e1414aa6c2fde2/creator), including the [comprehensive pack-content list](https://github.com/MicrosoftDocs/minecraft-creator/blob/4186dc4ec84c8980fc25d89c26e1414aa6c2fde2/creator/Documents/ComprehensivePackContents.md). Pinned source links in the matrix provide reproducible documentation evidence when Learn pages redirect or generated schema descriptions are incomplete.
 
@@ -24,7 +24,7 @@ Primary reference: [Minecraft Creator documentation](https://learn.microsoft.com
 |---|---:|---:|---:|
 | Packaging | 7/10 (70.0%) | 6/10 (60.0%) | 0/10 (0.0%) |
 | Textures | 8/11 (72.7%) | 7/11 (63.6%) | 0/11 (0.0%) |
-| Geometry | 8/12 (66.7%) | 8/12 (66.7%) | 0/12 (0.0%) |
+| Geometry | 9/12 (75.0%) | 9/12 (75.0%) | 0/12 (0.0%) |
 | Client entities | 9/11 (81.8%) | 9/11 (81.8%) | 0/11 (0.0%) |
 | Animations | 8/9 (88.9%) | 8/9 (88.9%) | 0/9 (0.0%) |
 | Controllers | 6/7 (85.7%) | 6/7 (85.7%) | 0/7 (0.0%) |
@@ -35,7 +35,7 @@ Primary reference: [Minecraft Creator documentation](https://learn.microsoft.com
 | JSON UI | 9/9 (100.0%) | 9/9 (100.0%) | 0/9 (0.0%) |
 | Audio and localization | 4/10 (40.0%) | 4/10 (40.0%) | 0/10 (0.0%) |
 | Environment | 12/17 (70.6%) | 12/17 (70.6%) | 0/17 (0.0%) |
-| Block and item assets | 2/7 (28.6%) | 2/7 (28.6%) | 0/7 (0.0%) |
+| Block and item assets | 6/7 (85.7%) | 6/7 (85.7%) | 0/7 (0.0%) |
 | Advanced rendering | 1/7 (14.3%) | 1/7 (14.3%) | 0/7 (0.0%) |
 | Other presentation | 2/2 (100.0%) | 2/2 (100.0%) | 0/2 (0.0%) |
 | Molang queries | 192/317 (60.6%) | 91/317 (28.7%) | 0/317 (0.0%) |
@@ -43,20 +43,18 @@ Primary reference: [Minecraft Creator documentation](https://learn.microsoft.com
 
 | Category | Implemented breadth | Targeted validation | Certified substantially complete |
 |---|---:|---:|---:|
-| Core capability/component estimate | 144/182 (79.1%) | 137/182 (75.3%) | 0/182 (0.0%) |
-| All enumerated inventory units | 397/560 (70.9%) | 266/560 (47.5%) | 0/560 (0.0%) |
+| Core capability/component estimate | 149/182 (81.9%) | 142/182 (78.0%) | 0/182 (0.0%) |
+| All enumerated inventory units | 402/560 (71.8%) | 271/560 (48.4%) | 0/560 (0.0%) |
 
 ## Validation evidence and limits
 
-Latest validation (2026-10-13 block/item batch): **430 unit tests passed, 0 failures, 0 errors, 0 skipped**. Gradle `:build` and the full client/integrated-server suite passed with generated fixtures and the local read-only Actions & Stuff 1.12 reference pack. Command: `BEDROCK_REFERENCE_PACK='<local Actions and Stuff 1.12.mcpack>' ./gradlew -I /tmp/crossrock-rp-audit-G6didE/audit-build.gradle :test :build :runClientGameTest --console=plain`. Log: `/tmp/crossrock-block-item-final.log`. JSON records every executed unit suite.
+Latest validation (2026-10-13 state/culling/item batch): **446 root and 64 EEF unit tests passed (510 total), zero failures/errors/skips**. Full multi-project Gradle build passed. Standard renderer + Actions & Stuff client/reference suite passed in **3m 24s**; Sodium passed in **2m 57s**. Logs: `/tmp/crossrock-expansion-build-all.log`, `/tmp/crossrock-expansion-final.log`, `/tmp/crossrock-expansion-sodium.log`. The final build also includes a conservative rejection of volatile dice expressions in baked state conditions.
 
-The block/item client checks exercise actual baked world and carried cube models, GUI/first-person/third-person/ground/fixed item rendering contexts, loaded icon pixels, missing-alias fallback and pack-removal restoration. Existing environment/entity/UI/particle regressions also pass. See [block/item batch](BLOCK_ITEM_ASSET_COMPATIBILITY.md) for the exact subset and remaining work. These are functional Java-renderer checks, not independent Bedrock visual parity.
-
-The prior water-opacity correction remains recorded separately: RGB tint and sky/fog changes preserve Java alpha without replacing environment shaders. Earlier Sodium/materials-trails runs remain historical evidence; Sodium and Iris were not part of the latest run. Iris remains untested.
+Checks inspect actual Java baked quads, material layers, sidedness, shade/AO, neighbor-face rendering, and numerical item bounds in eight authored display contexts. Existing entity/particle/UI/environment and local read-only Actions & Stuff reference regressions also pass. See [static geometry scope](BLOCK_GEOMETRY_COMPATIBILITY.md) for supported formats, bindings and fallback behavior. Initial test integration exposed timing-sensitive particle/biome fixture ordering; new reload checks were isolated after those existing checks before the passing runs. No Bedrock differential/visual parity is claimed; Iris remains untested.
 
 ## Active implementation boundary
 
-`VirtualCompatibilityPackRuntime.translators()` registers vanilla textures, presentation, beds, sound, language, native entity, environment and registered JSON UI resources; Punchy translation is conditional and adapts attachables, not an independent generic item API. Dormant translators and accepted JSON files are not credited without an active consumer. Native resource ingestion recognizes client entities, attachables, geometry, animations, animation/render controllers, materials, particles and selected biome query metadata. `VanillaTextureTranslator` calls `BedrockBlockModelGenerator`, which consumes a selected vanilla blocks.json subset. There is no general custom block geometry or full PBR execution path. JSON UI now has a bounded decorative and native-interaction execution subset, not full engine/HUD replacement support. Item atlas aliases now execute for mapped vanilla item icons as well as the existing spawn-egg subset. Simple bundled Java cube models additionally consume per-face blocks.json atlas assignments and separate carried textures; unknown/complex shapes retain Java behavior. This remains a bounded asset adapter, not a general item-definition/custom-geometry API. Client-biome/fog subsets and explicitly bounded VV color approximations now execute; see BEDROCK_ENVIRONMENT_COMPATIBILITY.md.
+`VirtualCompatibilityPackRuntime.translators()` registers vanilla textures, presentation, beds, sound, language, native entity, environment and registered JSON UI resources; Punchy translation is conditional and adapts attachables, not an independent generic item API. Dormant translators and accepted JSON files are not credited without an active consumer. Native resource ingestion recognizes client entities, attachables, geometry, animations, animation/render controllers, materials, particles and selected biome query metadata. `VanillaTextureTranslator` calls `BedrockBlockModelGenerator`, which consumes a selected vanilla blocks.json subset. Custom block state geometry/materials, authored culling and block-item display paths now execute through the Java baked-model pipeline; it requires a matching existing runtime identity and standard presentation bindings. Full PBR execution remains unsupported. JSON UI now has a bounded decorative and native-interaction execution subset, not full engine/HUD replacement support. Item atlas aliases now execute for mapped vanilla item icons as well as the existing spawn-egg subset. Simple bundled Java cube models additionally consume per-face blocks.json atlas assignments and separate carried textures; unknown/complex shapes retain Java behavior. Legacy/modern non-block icon definitions now have a bounded consumer. Gameplay registration remains external. Client-biome/fog subsets and explicitly bounded VV color approximations now execute; see BEDROCK_ENVIRONMENT_COMPATIBILITY.md.
 
 `NATIVE_ENTITIES.md` was checked against code, not accepted as proof. Its statements about missing first-person attachables and rectangular particle rendering are stale: `NativeAttachableRenderer`/`NativePlayerHandsMixin` and the particle rectangle renderer now contain those paths. Attachable particle effects execute; attachable sound effects still explicitly do not. Existing pack-specific adapters such as `SulfurCubeGeometry` cannot be counted as general geometry API support.
 
@@ -65,6 +63,8 @@ The prior water-opacity correction remains recorded separately: RGB tint and sky
 Pure RP: texture/atlas lookup, geometry/UV interpretation, render controllers/materials, animation evaluation, particle simulation, sounds/text, JSON UI, fog and client-biome visuals, subpacks/settings/priority. These can be implemented without importing BP gameplay.
 
 Runtime-context RP: queries, owner/equipment slots, synced properties, locator transforms, camera/animation clocks, biome identity and vanilla event triggers. Crossrock must adapt Java's available state and explicitly report unavailable contexts. A texture/controller that reads a custom property is not intrinsically unsupported RP syntax; producing that property may require BP/server integration. Do not invent BP state or silently activate variants as a substitute.
+
+Static `minecraft:geometry`, `minecraft:material_instances` and `minecraft:item_visual` presentation bindings may be read from selected BP/mixed packs; these do not activate BP gameplay.
 
 Excluded BP gameplay: entity/block/item registration, AI/components, spawning/worldgen, loot/recipes/trades, damage rules, scripts and server functions. Resource-side assets of custom registered objects can still have independent RP support. Skin/persona packs and server camera presets are separate adjacent scopes, not silently counted as core RP gameplay gaps.
 
@@ -99,7 +99,7 @@ Known documentation/version uncertainties: latest generated actor fields offer s
 
 ## Highest-impact verified gaps
 
-1. No general item atlas or custom block rendering; JSON UI complete expression semantics/factories/engine catalog remain unsupported; input and native slot collections have bounded partial paths; blocks.json only covers selected vanilla shapes/face assignments. Broad classes of cosmetic packs cannot execute, regardless of animation coverage.
+1. General aux/weighted item atlas selection, unmapped block states, dynamic query contexts and arbitrary non-block 3D bindings remain unsupported. State-driven visuals now execute for matching registered Java properties; see [state/culling/item scope](BLOCK_ASSET_STATE_COMPATIBILITY.md). JSON UI remains bounded.
 2. Query/context coverage is incomplete; some “supported” facts are constants or Java reconstructions. The entity renderer substitutes zero for recognized unsupported-query diagnostics, preserving drawing but potentially selecting incorrect branches. Other contexts and invalid argument handling differ.
 3. Particle child context, inherited velocity, audio/log dispatch and facing branches have now been repaired and unit-tested. Remaining high-impact gaps are offscreen owner updates, local-position collisions, UV boundary behavior and independent Bedrock comparisons; see the particle pass.
 4. Geometry bounds, render groups and item display transforms are ignored. Shortest-path controller blending remains absent. Client armor/item-lighting controls and legacy controllers now have functional subsets; offscreen policies, versioned selection and full public actor discovery remain open.
@@ -148,4 +148,12 @@ Colon-containing variable/binding identifiers and bounded literal string subtrac
 
 ## Block/item asset follow-up — 2026-10-13
 
-Mapped item atlas icons and generic simple-cube world/carried texture paths now execute. See [scope and evidence](BLOCK_ITEM_ASSET_COMPATIBILITY.md). This extends three existing Partial contracts; **block/item breadth stays 2/7** and overall totals remain unchanged. Legacy RP item definitions, independent custom item models, Bedrock-authored display transforms and custom block geometry/culling remain unsupported. Next prioritize shared pack-stack atlas resolution and explicit index selection, then bind item presentation definitions to existing runtime identities.
+Mapped item atlas icons and generic simple-cube world/carried texture paths execute. See [earlier scope](BLOCK_ITEM_ASSET_COMPATIBILITY.md). The latest state/culling/item pass raises block/item breadth to **6/7 (85.7%)**, with targeted validation; voxel shape assets remain unverified.
+
+## Static block geometry and authored display follow-up — 2026-10-13
+
+[Static block geometry/materials and block-item transforms](BLOCK_GEOMETRY_COMPATIBILITY.md) execute on matching Java identities. The [subsequent state/culling/item pass](BLOCK_ASSET_STATE_COMPATIBILITY.md) adds ordered permutations, world transforms, axis-aligned UV lock, GUI fitting, authored culling and legacy/modern item icon definitions. Core breadth is **149/182 (81.9%)**, targeted validation **142/182 (78.0%)**; geometry remains **9/12 (75.0%)**. No complete-contract or independent Bedrock parity certification is added.
+
+## Per-world Behavior Pack integration
+
+Server-selected dependencies now become individual world RPs with per-definition source priority. Logical actor/item hosts reuse the existing renderer and item translation pipeline. Fixture coverage includes two packs, synchronized properties, reload/removal and reconnect. This does not change the RP contract counts or certify VN. See [BP coverage](BEDROCK_BP_COVERAGE.md).

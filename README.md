@@ -12,9 +12,9 @@ To add a pack, just drag & drop onto the dedicated pack window, enable the pack 
 
 <img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/v.png" width="16" height="16" alt="Supported"> **Item models**
 
-<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/p.png" width="16" height="16" alt="Partial support"> Block textures and models — block/item asset coverage: **29%**
+<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/p.png" width="16" height="16" alt="Partial support"> Block textures and models — block/item asset coverage: **86%**
 
-<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/p.png" width="16" height="16" alt="Partial support"> Entity textures and models — geometry coverage: **67%**, client-entity coverage: **82%**
+<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/p.png" width="16" height="16" alt="Partial support"> Entity textures and models — geometry coverage: **75%**, client-entity coverage: **82%**
 
 <img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/v.png" width="16" height="16" alt="Mostly supported"> **Entity animations — 89%**
 
@@ -24,7 +24,7 @@ To add a pack, just drag & drop onto the dedicated pack window, enable the pack 
 
 <img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/v.png" width="16" height="16" alt="Supported subset"> **Panoramas**
 
-<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/p.png" width="16" height="16" alt="Partial support"> Many other resource-pack features — overall implemented coverage: **79%**
+<img src="https://raw.githubusercontent.com/matanyah123/Icons-and-assets/main/Icons/p.png" width="16" height="16" alt="Partial support"> Many other resource-pack features — overall implemented coverage: **82%**
 
 Percentages show implemented feature coverage in the named categories, including partial implementations; they are not completion or pack-compatibility guarantees. See the [detailed coverage report](BEDROCK_RP_COVERAGE.md) for scope, validation and remaining limitations.
 
@@ -37,3 +37,9 @@ Crossrock is designed to be neutral: installing the mod by itself changes nothin
 Crossrock is currently in alpha. Many Bedrock features already work, but full Add-On compatibility is still a work in progress. Some packs or individual features may render incorrectly or not work yet.
 
 > Try it and let me know what you think in [the Discord](https://discord.com/invite/79DmKrDepp) ❤
+
+## Behavior Pack foundations
+
+Import Bedrock directories, `.mcpack` or `.mcaddon` into the game `addons` directory, or a world’s `datapacks/addons`. Create World → Data Packs and Edit World → Datapacks & Behavior Packs expose separate Java and Bedrock tabs. Enable BPs per world; dependencies supply individual required RPs to connected Crossrock clients. Dedicated servers use normal Java datapack selection (`crossrock/bp/<uuid>`).
+
+This implements pack lifecycle, logical actor/item hosts and transport; Script API and gameplay components are deferred. Villager News gameplay is not yet supported. See [architecture](docs/architecture/behavior-packs.md) and [coverage](BEDROCK_BP_COVERAGE.md).

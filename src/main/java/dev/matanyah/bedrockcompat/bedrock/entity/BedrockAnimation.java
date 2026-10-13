@@ -18,18 +18,21 @@ public final class BedrockAnimation {
     private record Key(double time,Value pre,Value post,boolean smooth) {}
     private record Channel(List<Key> keys) {
         Vector sample(double time,Molang.Context ctx,Vector current) {
-            if(time<keys.getFirst().time)return keys.getFirst().pre.sample(ctx,current);
+            if(time<keys.getFirst().time)return sample(keys.getFirst().pre,ctx,current,0);
             for(int i=1;i<keys.size();i++) {
                 Key a=keys.get(i-1),b=keys.get(i);
                 if(time<b.time) {
                     double t=(time-a.time)/(b.time-a.time);
-                    if (!a.smooth) return Vector.lerp(a.post.sample(ctx,current),b.pre.sample(ctx,current),t);
-                    Vector p0=keys.get(Math.max(0,i-2)).post.sample(ctx,current),p1=a.post.sample(ctx,current),p2=b.pre.sample(ctx,current),p3=keys.get(Math.min(keys.size()-1,i+1)).pre.sample(ctx,current);
+                    if (!a.smooth) return Vector.lerp(sample(a.post,ctx,current,t),sample(b.pre,ctx,current,t),t);
+                    Vector p0=sample(keys.get(Math.max(0,i-2)).post,ctx,current,t),p1=sample(a.post,ctx,current,t),p2=sample(b.pre,ctx,current,t),p3=sample(keys.get(Math.min(keys.size()-1,i+1)).pre,ctx,current,t);
                     return new Vector(spline(p0.x,p1.x,p2.x,p3.x,t),spline(p0.y,p1.y,p2.y,p3.y,t),spline(p0.z,p1.z,p2.z,p3.z,t));
                 }
-                if(time==b.time)return b.post.sample(ctx,current);
+                if(time==b.time)return sample(b.post,ctx,current,i==keys.size()-1?1:0);
             }
-            return keys.getLast().post.sample(ctx,current);
+            return sample(keys.getLast().post,ctx,current,keys.size()==1?0:1);
+        }
+        private static Vector sample(Value value,Molang.Context ctx,Vector current,double ratio) {
+            return ctx.withQueries(Map.of("key_frame_lerp_time",ratio),()->value.sample(ctx,current));
         }
     }
     private record Bone(Channel position,Channel rotation,Channel scale,boolean entityRelativeRotation) {}
@@ -66,19 +69,24 @@ public final class BedrockAnimation {
         }
         length=source.has("animation_length")?source.get("animation_length").getAsDouble():max;
         if(!Double.isFinite(length)||length<0)throw new IllegalArgumentException("Invalid animation length");
-        bones=Map.copyOf(compiled);
+        // Expressions can publish variables consumed by later authored bones.
+        bones=Collections.unmodifiableMap(compiled);
     }
     public Runtime createRuntime(){return new Runtime();}
     public boolean overridesPrevious(){return override;}
 
     /** Playback state belongs to one occurrence of a clip, not to its shared resource definition. */
     public final class Runtime {
-        private double lastInput=Double.NaN,time,startRemaining,loopRemaining;
+        private double lastInput=Double.NaN,time,updateClock,startRemaining,loopRemaining;
         private boolean first=true,initialEvent=true,completed;
         private BedrockAnimationController.Sample last=new BedrockAnimationController.Sample(Map.of(),false);
         public double animationTime(){return time;}
         public BedrockAnimationController.Sample sample(double input,Molang.Context context,Map<String,Pose> current,
                 java.util.function.Consumer<BedrockEntityEffect> effects) {
+            return sample(input,context,current,effects,Double.NaN);
+        }
+        public BedrockAnimationController.Sample sample(double input,Molang.Context context,Map<String,Pose> current,
+                java.util.function.Consumer<BedrockEntityEffect> effects,double frameDelta) {
             if(!Double.isFinite(input)||input<0)throw new IllegalArgumentException("Invalid animation playback clock");
             if(!Double.isNaN(lastInput)&&input<=lastInput)return last;
             double delta=Double.isNaN(lastInput)?input:input-lastInput;
@@ -88,16 +96,25 @@ public final class BedrockAnimation {
                 double consume=Math.min(delta,startRemaining);delta-=consume;startRemaining-=consume;
                 if(startRemaining>0){last=new BedrockAnimationController.Sample(Map.of(),false);return last;}
             }
-            final double step=delta;
-            double next=timeUpdate==null?time+delta:context.withQueries(Map.of("anim_time",time,"delta_time",step),()->finite(timeUpdate,context));
-            next=Math.max(0,next);
+            // A controller can enter a fresh clip at local time zero during an
+            // existing rendered frame. Physics consumes frame time, not clip age.
+            final double step=Double.isNaN(frameDelta)?delta:frameDelta;
+            // The driver clock must not wrap with the sampled clip phase. Absolute
+            // drivers (life_time, distance_moved) otherwise replay every old loop on
+            // every frame, eventually exhausting the loop budget and dropping models.
+            double driver=timeUpdate==null?updateClock+delta:context.withQueries(Map.of("anim_time",updateClock,"delta_time",step),()->finite(timeUpdate,context));
+            driver=Math.max(0,driver);
+            double next=Math.max(0,time+driver-updateClock);
+            updateClock=driver;
             boolean looping=context.withQueries(Map.of("anim_time",time),()->Molang.truth(loopExpression.evaluate(context)));
             if(initialEvent){dispatch(-1,0,context,effects);initialEvent=false;}
             if(next<time)time=next;
             else {
                 double advance=next-time;
                 for(int iterations=0;;iterations++) {
-                    if(iterations>256)throw new IllegalArgumentException("Too many animation loops in a single update");
+                    // A newly observed absolute clock may already be hours old. Do
+                    // not replay an unbounded backlog of effects from before observation.
+                    if(iterations>256&&length>0)advance%=length;
                     if(loopRemaining>0) {
                         double consume=Math.min(advance,loopRemaining);loopRemaining-=consume;advance-=consume;
                         if(loopRemaining>0)break;
@@ -140,7 +157,7 @@ public final class BedrockAnimation {
             JsonElement value=entry.getValue();
             if(value.isJsonArray())value.getAsJsonArray().forEach(v->values.add(expression(v)));else values.add(expression(value));
         }
-        for(var kind:BedrockEntityEffect.Kind.values()) {
+        for(var kind:List.of(BedrockEntityEffect.Kind.SOUND,BedrockEntityEffect.Kind.PARTICLE)) {
             String key=kind==BedrockEntityEffect.Kind.SOUND?"sound_effects":"particle_effects";
             if(!source.has(key))continue;
             for(var entry:source.getAsJsonObject(key).entrySet()) {
@@ -149,9 +166,10 @@ public final class BedrockAnimation {
                 if(!value.isJsonArray())values.add(value);
                 for(var element:values) {
                     JsonObject effect=element.getAsJsonObject();
-                    if(effect.has("pre_effect_script"))scripts.computeIfAbsent(time,t->new ArrayList<>()).add(expression(effect.get("pre_effect_script")));
+                    if(kind==BedrockEntityEffect.Kind.SOUND&&effect.has("pre_effect_script"))scripts.computeIfAbsent(time,t->new ArrayList<>()).add(expression(effect.get("pre_effect_script")));
                     effects.computeIfAbsent(time,t->new ArrayList<>()).add(new BedrockEntityEffect(kind,effect.get("effect").getAsString(),
-                        effect.has("locator")?effect.get("locator").getAsString():""));
+                        effect.has("locator")?effect.get("locator").getAsString():"",
+                        effect.has("pre_effect_script")?effect.get("pre_effect_script").getAsString():""));
                 }
             }
         }
@@ -205,7 +223,11 @@ public final class BedrockAnimation {
     private static Value value(JsonElement v) {
         if(v==null)throw new IllegalArgumentException("Missing keyframe value");
         if(v.isJsonArray()) {
-            JsonArray a=v.getAsJsonArray();if(a.size()!=3)throw new IllegalArgumentException("Expected three animation components");
+            JsonArray a=v.getAsJsonArray();
+            if(a.size()==1) {
+                Molang.Expression scalar=expression(a.get(0));return new Value(scalar,scalar,scalar);
+            }
+            if(a.size()!=3)throw new IllegalArgumentException("Expected one or three animation components");
             return new Value(expression(a.get(0)),expression(a.get(1)),expression(a.get(2)));
         }
         Molang.Expression expression=expression(v);return new Value(expression,expression,expression);

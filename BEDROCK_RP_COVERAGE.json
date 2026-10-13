@@ -2,7 +2,7 @@
   "schema_version": 1,
   "project": "Crossrock",
   "audit_date": "2026-10-13",
-  "repository_head": "4f7eec71997d5fd5909a88a4cd91db1f67ca882f",
+  "repository_head": "623f4de778022987388e4de0521643fa4725d1f8",
   "working_tree": "Audited current dirty working tree, not HEAD alone. Existing user changes preserved.",
   "official_docs": {
     "repository": "MicrosoftDocs/minecraft-creator",
@@ -19,12 +19,12 @@
   },
   "validation": {
     "fresh_unit_run": {
-      "tests": 430,
+      "tests": 446,
       "failures": 0,
       "errors": 0,
       "skipped": 0
     },
-    "command": "BEDROCK_REFERENCE_PACK='/Users/matanyah/Downloads/Actions and Stuff 1.12.mcpack' ./gradlew -I /tmp/crossrock-rp-audit-G6didE/audit-build.gradle :test :build :runClientGameTest --console=plain",
+    "command": "BEDROCK_REFERENCE_PACK=<local read-only Actions and Stuff 1.12.mcpack> ./gradlew -I /tmp/crossrock-rp-audit-G6didE/audit-build.gradle :test :build :runClientGameTest --console=plain",
     "client_gametests_freshly_run": true,
     "initial_run": "Failed before meaningful testing due stale duplicate Test 2.class/Test 3.class artifacts; isolated output succeeded without deleting existing build files.",
     "suite_results": [
@@ -302,6 +302,20 @@
         "skipped": 0
       },
       {
+        "suite": "dev.matanyah.bedrockcompat.bedrock.resource.BedrockAssetExpansionTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "dev.matanyah.bedrockcompat.bedrock.resource.BedrockBlockAssetTranslatorTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
         "suite": "dev.matanyah.bedrockcompat.bedrock.resource.BedrockEnvironmentTranslatorTest",
         "tests": 6,
         "failures": 0,
@@ -486,30 +500,98 @@
     },
     "current_client_run": {
       "date": "2026-10-13",
-      "command": "BEDROCK_REFERENCE_PACK='/Users/matanyah/Downloads/Actions and Stuff 1.12.mcpack' ./gradlew -I /tmp/crossrock-rp-audit-G6didE/audit-build.gradle :test :build :runClientGameTest --console=plain",
-      "log": "/tmp/crossrock-block-item-final.log",
-      "result": "Passed full client/integrated-server suite",
-      "scope": "Generated fixtures plus read-only Actions & Stuff 1.12 reference pack. Sodium/Iris not included in this run."
+      "command": "BEDROCK_REFERENCE_PACK=<local read-only Actions and Stuff 1.12.mcpack> ./gradlew -I /tmp/crossrock-rp-audit-G6didE/audit-build.gradle :test :build :runClientGameTest --console=plain",
+      "log": "/tmp/crossrock-expansion-final.log",
+      "result": "Standard/reference passed in 3m 24s; Sodium/reference passed in 2m 57s.",
+      "scope": "State permutations, hidden geometry, transforms, UV lock, four culling conditions and neighbor cache, GUI bounds, non-block icons, stacking/reload/removal plus existing regressions. No independent Bedrock differential."
+    },
+    "multi_project_build": {
+      "command": "BEDROCK_REFERENCE_PACK=<local read-only Actions and Stuff 1.12.mcpack> ./gradlew -I /tmp/crossrock-rp-audit-G6didE/audit-build.gradle build --console=plain",
+      "result": "Passed",
+      "log": "/tmp/crossrock-expansion-build-all.log",
+      "root_unit": {
+        "tests": 446,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "eef_unit": {
+        "tests": 64,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "eef_suite_results": [
+        {
+          "suite": "dev.matanyah.eef.BedrockScriptInterpreterTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "suite": "dev.matanyah.eef.DeveloperResourcePackTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "suite": "dev.matanyah.eef.EefConfigTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "suite": "dev.matanyah.eef.EefRuleParserTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "suite": "dev.matanyah.eef.EefRuntimeTest",
+          "tests": 43,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "suite": "dev.matanyah.eef.EntityEventFeaturesEntrypointTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "suite": "dev.matanyah.eef.client.EefClientContextTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
     }
   },
   "coverage": {
     "capabilities_and_components": {
       "denominator": 182,
       "implemented": {
-        "numerator": 144,
-        "percent": 79.1
+        "numerator": 149,
+        "percent": 81.9
       },
       "validated": {
-        "numerator": 137,
-        "percent": 75.3
+        "numerator": 142,
+        "percent": 78.0
       },
       "substantially_complete": {
         "numerator": 0,
         "percent": 0.0
       },
       "status_counts": {
-        "Partial": 135,
-        "Unsupported": 35,
+        "Partial": 140,
+        "Unsupported": 30,
         "Implemented": 9,
         "Unknown": 3
       }
@@ -517,20 +599,20 @@
     "all_inventory_units": {
       "denominator": 560,
       "implemented": {
-        "numerator": 397,
-        "percent": 70.9
+        "numerator": 402,
+        "percent": 71.8
       },
       "validated": {
-        "numerator": 266,
-        "percent": 47.5
+        "numerator": 271,
+        "percent": 48.4
       },
       "substantially_complete": {
         "numerator": 0,
         "percent": 0.0
       },
       "status_counts": {
-        "Partial": 388,
-        "Unsupported": 160,
+        "Partial": 393,
+        "Unsupported": 155,
         "Implemented": 9,
         "Unknown": 3
       }
@@ -578,21 +660,21 @@
       "Geometry": {
         "denominator": 12,
         "implemented": {
-          "numerator": 8,
-          "percent": 66.7
+          "numerator": 9,
+          "percent": 75.0
         },
         "validated": {
-          "numerator": 8,
-          "percent": 66.7
+          "numerator": 9,
+          "percent": 75.0
         },
         "substantially_complete": {
           "numerator": 0,
           "percent": 0.0
         },
         "status_counts": {
-          "Partial": 5,
+          "Partial": 6,
           "Implemented": 3,
-          "Unsupported": 3,
+          "Unsupported": 2,
           "Unknown": 1
         }
       },
@@ -791,20 +873,19 @@
       "Block and item assets": {
         "denominator": 7,
         "implemented": {
-          "numerator": 2,
-          "percent": 28.6
+          "numerator": 6,
+          "percent": 85.7
         },
         "validated": {
-          "numerator": 2,
-          "percent": 28.6
+          "numerator": 6,
+          "percent": 85.7
         },
         "substantially_complete": {
           "numerator": 0,
           "percent": 0.0
         },
         "status_counts": {
-          "Partial": 2,
-          "Unsupported": 4,
+          "Partial": 6,
           "Unknown": 1
         }
       },
@@ -1893,7 +1974,8 @@
       "substantially_complete": false,
       "completeness": "No; known limitations",
       "limitations": [
-        "Subset flattened to Java assets; not a general Bedrock terrain atlas runtime."
+        "Subset flattened to Java assets; not a general Bedrock terrain atlas runtime.",
+        "Static block geometry additionally resolves authored terrain aliases/images across selected RP/mixed packs; general indexed/weighted and built-in Bedrock atlas fallback remain unsupported."
       ],
       "evidence": [
         {
@@ -1994,6 +2076,12 @@
             }
           ],
           "assertion_scope": "Mapped contract subset only. Method index supports inspection; not all listed methods pertain to this row."
+        },
+        {
+          "path": "src/test/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockBlockAssetTranslatorTest.java",
+          "method": "crossPackGeometryAndMaterialReferencesGenerateWorkingMeshResources",
+          "run": "passed_static_block_geometry_pass",
+          "note": "Cross-pack alias/image binding consumed by baked static model path."
         }
       ],
       "documentation": [
@@ -3201,31 +3289,42 @@
       "name": "item_display_transforms in geometry 1.21",
       "inventory_kind": "capability",
       "responsibility": "rp_only",
-      "status": "Unsupported",
-      "implemented": false,
-      "validation_level": "code_inspected_only",
-      "validated": false,
+      "status": "Partial",
+      "implemented": true,
+      "validation_level": "targeted_unit_and_client_subset",
+      "validated": true,
       "substantially_complete": false,
-      "completeness": "No",
+      "completeness": "No; known limitations",
       "limitations": [
-        "GUI, first/third person, ground, fixed, head, embedded and shelf transforms ignored."
+        "Authored block-item context transforms and automatic GUI bounds fitting execute through Java baked models. Exact historical Bedrock pixel fitting and arbitrary entity/non-block model bindings are not certified."
       ],
       "evidence": [
         {
-          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/entity/BedrockGeometry.java",
-          "line": 53,
-          "symbol_or_anchor": "public static BedrockGeometry parse(JsonObject source) {"
+          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockBlockAssetTranslator.java",
+          "line": 1,
+          "symbol_or_anchor": "Stack translation and rendering; see BLOCK_ASSET_STATE_COMPATIBILITY.md"
         }
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "src/test/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockAssetExpansionTest.java",
+          "run": "passed_isolated_unit_suite",
+          "claim": "Targeted state, transform, UV, culling, icon and fallback assertions."
+        },
+        {
+          "path": "src/gametest/java/dev/matanyah/bedrockcompat/test/BlockAssetExpansionChecks.java",
+          "run": "passed_standard_and_sodium_reference_client",
+          "claim": "Actual baked-model, emitted-quad, neighbor cache, item bounds and removal assertions."
+        }
+      ],
       "documentation": [
         "https://github.com/MicrosoftDocs/minecraft-creator/blob/4186dc4ec84c8980fc25d89c26e1414aa6c2fde2/creator/Reference/Content/VisualReference/geometry.v1.21.0.md"
       ],
       "validation_dimensions": {
-        "automated_subset": false,
-        "fresh_in_game": false,
+        "automated_subset": true,
+        "fresh_in_game": true,
         "cross_engine_differential": false,
-        "full_semantic_parity": "Not established; known missing behavior"
+        "full_semantic_parity": "Not established; bounded static subset"
       },
       "included_in_rp_denominator": true
     },
@@ -9687,31 +9786,42 @@
       "name": "Custom block geometry and material bindings",
       "inventory_kind": "capability",
       "responsibility": "rp_only",
-      "status": "Unsupported",
-      "implemented": false,
-      "validation_level": "code_inspected_only",
-      "validated": false,
+      "status": "Partial",
+      "implemented": true,
+      "validation_level": "targeted_unit_and_client_subset",
+      "validated": true,
       "substantially_complete": false,
-      "completeness": "No",
+      "completeness": "No; known limitations",
       "limitations": [
-        "BP registration is separate; RP geometry/material rendering could be supported once a block runtime ID/context exists."
+        "Matching registered Java states support ordered pure-state permutations, bone visibility, version-gated world transforms and axis-aligned UV lock. Unsupported state/query contexts, oblique UV locking, non-square box UV lock, poly meshes, per-material AO and full lighting parity retain fallback. Gameplay registration is external."
       ],
       "evidence": [
         {
-          "path": "src/client/java/dev/matanyah/bedrockcompat/client/resource/VirtualCompatibilityPackRuntime.java",
-          "line": 27,
-          "symbol_or_anchor": "private static final BedrockTranslationPipeline PIPELINE = new BedrockTranslationPipeline(translators());"
+          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockBlockAssetTranslator.java",
+          "line": 1,
+          "symbol_or_anchor": "Stack translation and rendering; see BLOCK_ASSET_STATE_COMPATIBILITY.md"
         }
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "src/test/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockAssetExpansionTest.java",
+          "run": "passed_isolated_unit_suite",
+          "claim": "Targeted state, transform, UV, culling, icon and fallback assertions."
+        },
+        {
+          "path": "src/gametest/java/dev/matanyah/bedrockcompat/test/BlockAssetExpansionChecks.java",
+          "run": "passed_standard_and_sodium_reference_client",
+          "claim": "Actual baked-model, emitted-quad, neighbor cache, item bounds and removal assertions."
+        }
+      ],
       "documentation": [
         "https://github.com/MicrosoftDocs/minecraft-creator/blob/4186dc4ec84c8980fc25d89c26e1414aa6c2fde2/creator/Documents/ComprehensivePackContents.md"
       ],
       "validation_dimensions": {
-        "automated_subset": false,
-        "fresh_in_game": false,
+        "automated_subset": true,
+        "fresh_in_game": true,
         "cross_engine_differential": false,
-        "full_semantic_parity": "Not established; known missing behavior"
+        "full_semantic_parity": "Not established; bounded static subset"
       },
       "included_in_rp_denominator": true
     },
@@ -9721,29 +9831,40 @@
       "name": "block_culling rule and geometry-part selection",
       "inventory_kind": "capability",
       "responsibility": "rp_only",
-      "status": "Unsupported",
-      "implemented": false,
-      "validation_level": "code_inspected_only",
-      "validated": false,
+      "status": "Partial",
+      "implemented": true,
+      "validation_level": "targeted_unit_and_client_subset",
+      "validated": true,
       "substantially_complete": false,
-      "completeness": "No",
+      "completeness": "No; known limitations",
       "limitations": [
-        "No RP culling rule consumer."
+        "Authored bone/cube/face rules execute against full vanilla neighbor occlusion, same block, same permutation and shared culling layers. Imported voxel shapes and exact Bedrock occlusion parity remain unsupported."
       ],
       "evidence": [
         {
-          "path": "src/client/java/dev/matanyah/bedrockcompat/client/resource/VirtualCompatibilityPackRuntime.java",
-          "line": 27,
-          "symbol_or_anchor": "private static final BedrockTranslationPipeline PIPELINE = new BedrockTranslationPipeline(translators());"
+          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockBlockAssetTranslator.java",
+          "line": 1,
+          "symbol_or_anchor": "Stack translation and rendering; see BLOCK_ASSET_STATE_COMPATIBILITY.md"
         }
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "src/test/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockAssetExpansionTest.java",
+          "run": "passed_isolated_unit_suite",
+          "claim": "Targeted state, transform, UV, culling, icon and fallback assertions."
+        },
+        {
+          "path": "src/gametest/java/dev/matanyah/bedrockcompat/test/BlockAssetExpansionChecks.java",
+          "run": "passed_standard_and_sodium_reference_client",
+          "claim": "Actual baked-model, emitted-quad, neighbor cache, item bounds and removal assertions."
+        }
+      ],
       "documentation": [
         "https://github.com/MicrosoftDocs/minecraft-creator/blob/4186dc4ec84c8980fc25d89c26e1414aa6c2fde2/creator/Documents/ComprehensivePackContents.md"
       ],
       "validation_dimensions": {
-        "automated_subset": false,
-        "fresh_in_game": false,
+        "automated_subset": true,
+        "fresh_in_game": true,
         "cross_engine_differential": false,
         "full_semantic_parity": "Not established; known missing behavior"
       },
@@ -9789,29 +9910,40 @@
       "name": "Legacy RP items/*.json presentation definitions",
       "inventory_kind": "capability",
       "responsibility": "rp_only",
-      "status": "Unsupported",
-      "implemented": false,
-      "validation_level": "code_inspected_only",
-      "validated": false,
+      "status": "Partial",
+      "implemented": true,
+      "validation_level": "targeted_unit_and_client_subset",
+      "validated": true,
       "substantially_complete": false,
-      "completeness": "No",
+      "completeness": "No; known limitations",
       "limitations": [
-        "No generic item-definition interpreter; modern BP item registration/gameplay is excluded."
+        "Legacy RP and modern BP icon presentation executes for existing Java item identities with stacked atlas/image lookup. Gameplay registration, dynamic/aux icon selectors and legacy render_offsets presets remain unsupported."
       ],
       "evidence": [
         {
-          "path": "src/client/java/dev/matanyah/bedrockcompat/client/resource/VirtualCompatibilityPackRuntime.java",
-          "line": 27,
-          "symbol_or_anchor": "private static final BedrockTranslationPipeline PIPELINE = new BedrockTranslationPipeline(translators());"
+          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockItemAssetTranslator.java",
+          "line": 1,
+          "symbol_or_anchor": "Stack translation and rendering; see BLOCK_ASSET_STATE_COMPATIBILITY.md"
         }
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "src/test/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockAssetExpansionTest.java",
+          "run": "passed_isolated_unit_suite",
+          "claim": "Targeted state, transform, UV, culling, icon and fallback assertions."
+        },
+        {
+          "path": "src/gametest/java/dev/matanyah/bedrockcompat/test/BlockAssetExpansionChecks.java",
+          "run": "passed_standard_and_sodium_reference_client",
+          "claim": "Actual baked-model, emitted-quad, neighbor cache, item bounds and removal assertions."
+        }
+      ],
       "documentation": [
         "https://github.com/MicrosoftDocs/minecraft-creator/blob/4186dc4ec84c8980fc25d89c26e1414aa6c2fde2/creator/Documents/ComprehensivePackContents.md"
       ],
       "validation_dimensions": {
-        "automated_subset": false,
-        "fresh_in_game": false,
+        "automated_subset": true,
+        "fresh_in_game": true,
         "cross_engine_differential": false,
         "full_semantic_parity": "Not established; known missing behavior"
       },
@@ -9967,36 +10099,42 @@
       "name": "Custom item model/display transforms independent of attachables",
       "inventory_kind": "capability",
       "responsibility": "rp_only",
-      "status": "Unsupported",
-      "implemented": false,
-      "validation_level": "code_inspected_only",
-      "validated": false,
+      "status": "Partial",
+      "implemented": true,
+      "validation_level": "targeted_unit_and_client_subset",
+      "validated": true,
       "substantially_complete": false,
-      "completeness": "No",
+      "completeness": "No; known limitations",
       "limitations": [
-        "Punchy adapts attachables only and is conditional; it is not an independent item model/display-transforms API. Native attachables are counted separately."
+        "Independent block-item geometry/materials and authored display transforms execute, including GUI fit-to-frame bounds. Non-block item icons use Java generated models; arbitrary non-block 3D model bindings and full cross-engine display parity remain unsupported."
       ],
       "evidence": [
         {
-          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/resource/PunchyItemTranslator.java",
-          "line": 38,
-          "symbol_or_anchor": "public void translate(BedrockPack pack, BedrockPackConfiguration configuration, GeneratedResourceSink sink)"
-        },
-        {
-          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/entity/BedrockGeometry.java",
-          "line": 53,
-          "symbol_or_anchor": "public static BedrockGeometry parse(JsonObject source) {"
+          "path": "src/main/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockBlockAssetTranslator.java",
+          "line": 1,
+          "symbol_or_anchor": "Stack translation and rendering; see BLOCK_ASSET_STATE_COMPATIBILITY.md"
         }
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "src/test/java/dev/matanyah/bedrockcompat/bedrock/resource/BedrockAssetExpansionTest.java",
+          "run": "passed_isolated_unit_suite",
+          "claim": "Targeted state, transform, UV, culling, icon and fallback assertions."
+        },
+        {
+          "path": "src/gametest/java/dev/matanyah/bedrockcompat/test/BlockAssetExpansionChecks.java",
+          "run": "passed_standard_and_sodium_reference_client",
+          "claim": "Actual baked-model, emitted-quad, neighbor cache, item bounds and removal assertions."
+        }
+      ],
       "documentation": [
         "https://github.com/MicrosoftDocs/minecraft-creator/blob/4186dc4ec84c8980fc25d89c26e1414aa6c2fde2/creator/Documents/ComprehensivePackContents.md"
       ],
       "validation_dimensions": {
-        "automated_subset": false,
-        "fresh_in_game": false,
+        "automated_subset": true,
+        "fresh_in_game": true,
         "cross_engine_differential": false,
-        "full_semantic_parity": "Not established; known missing behavior"
+        "full_semantic_parity": "Not established; bounded static subset"
       },
       "included_in_rp_denominator": true
     },
@@ -52899,5 +53037,68 @@
     ],
     "installed_jar": "/Users/matanyah/Library/Application Support/ModrinthApp/profiles/Fabric 26.2/mods/bedrock-compat-0.1.0.jar",
     "sha256": "44c1b590b64d21cb679ea187dc5da684b9e3ab0d35f1d727629b8eab73ae7974"
+  },
+  "static_block_geometry_pass": {
+    "date": "2026-10-13",
+    "report": "BLOCK_GEOMETRY_COMPATIBILITY.md",
+    "features": [
+      "block.geometry",
+      "geometry.display",
+      "item.models"
+    ],
+    "unit_result": {
+      "tests": 438,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "multi_project_build_log": "/tmp/crossrock-geometry-build-all.log",
+    "client_log": "/tmp/crossrock-geometry-final.log",
+    "client_result": "Passed standard renderer and reference pack, 2m 47s",
+    "sodium_log": "/tmp/crossrock-geometry-sodium.log",
+    "sodium_result": "Passed final source including externally registered test block/item, source-file reload and pack removal, 2m 53s; Sodium 0.9.2-alpha.4+mc26.2",
+    "sodium_command": "BEDROCK_REFERENCE_PACK=<local read-only Actions and Stuff 1.12.mcpack> ./gradlew -I /tmp/crossrock-rp-audit-G6didE/audit-build.gradle :test :build :runClientGameTest -PnativeEntityCompatibilityMods=<local Sodium 0.9.2-alpha.4+mc26.2.jar> --console=plain",
+    "iris": "Not available/tested",
+    "visual_oracle": "No independent Bedrock visual/numerical oracle; screenshots diagnostic only",
+    "notes": [
+      "Three formerly Unsupported broad contracts now Partial. Block/item breadth 4/7, geometry 9/12; none certified complete.",
+      "Presentation bindings extracted from selected BP/mixed packs; no gameplay registry or BP script/state execution.",
+      "Unsupported declarations stage no replacement, preserving Java/lower assets; all-hidden/empty meshes remain unsupported."
+    ],
+    "installed_jar": "/Users/matanyah/Library/Application Support/ModrinthApp/profiles/Fabric 26.2/mods/bedrock-compat-0.1.0.jar",
+    "sha256": "c6368ce1222060869095804d877e93a2276cd3e1418b16e2aae517eaa34fb440"
+  },
+  "block_asset_state_pass": {
+    "date": "2026-10-13",
+    "scope_document": "BLOCK_ASSET_STATE_COMPATIBILITY.md",
+    "root_unit": {
+      "tests": 446,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "eef_unit": {
+      "tests": 64,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "standard_log": "/tmp/crossrock-expansion-final.log",
+    "sodium_log": "/tmp/crossrock-expansion-sodium.log",
+    "build_log": "/tmp/crossrock-expansion-build-all.log",
+    "limits": "Bounded working resource adapter, not 100% Bedrock equivalence or gameplay registration.",
+    "startup_retry": "Initial Fabric startup barrier hang before testing was terminated; fresh standard run passed.",
+    "post_client_change": "Pure-state validator additionally rejects volatile math.die_roll expressions; final unit/build rerun covers compiled source.",
+    "installed_build": {
+      "path": "/Users/matanyah/Library/Application Support/ModrinthApp/profiles/Fabric 26.2/mods/bedrock-compat-0.1.0.jar",
+      "sha256": "c5346cd1a4471486a04dcf57127ff69a2571118a1c09f9347af23e682b064fe0",
+      "backup_directory": "/Users/matanyah/Library/Application Support/ModrinthApp/profiles/Fabric 26.2/.codex-backups/state-assets-20261013-184500",
+      "test_registration_shipped": false
+    }
+  },
+  "behavior_foundation_integration": {
+    "coverage": "BEDROCK_BP_COVERAGE.md",
+    "test": "BehaviorInfrastructureChecks",
+    "certified": false
   }
 }

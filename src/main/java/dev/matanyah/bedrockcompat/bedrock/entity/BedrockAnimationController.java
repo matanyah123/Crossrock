@@ -31,6 +31,10 @@ public final class BedrockAnimationController {
     @FunctionalInterface public interface ContextualSampler {
         Sample sample(String alias,double elapsedSeconds,Molang.Context context,Map<String,BedrockAnimation.Pose> preceding,double weight);
     }
+    @FunctionalInterface public interface HierarchicalSampler {
+        /** Preceding poses are controller-local deltas; replacement bones reset inherited outer transforms. */
+        Sample sample(String alias,double elapsedSeconds,Molang.Context context,Sample preceding,double weight);
+    }
     private final Map<String,State> states;
     private final String initial;
 
@@ -85,10 +89,13 @@ public final class BedrockAnimationController {
             return sampleContextual(nowSeconds,context,(a,t,c,p,w)->sampler.sample(a,t,c),effects);
         }
         public Sample sampleContextual(double nowSeconds,Molang.Context context,ContextualSampler sampler,Consumer<BedrockEntityEffect> effects) {
+            return sampleHierarchical(nowSeconds,context,(a,t,c,p,w)->sampler.sample(a,t,c,p.poses,w),effects);
+        }
+        public Sample sampleHierarchical(double nowSeconds,Molang.Context context,HierarchicalSampler sampler,Consumer<BedrockEntityEffect> effects) {
             if (!Double.isFinite(nowSeconds) || nowSeconds < 0) throw new IllegalArgumentException("Invalid controller time");
-            if (nowSeconds == lastTime) return last;
-            if (!Double.isNaN(lastTime) && nowSeconds < lastTime)
-                throw new IllegalArgumentException("Controller clock moved backwards; reset the entity instance");
+            // Render passes and partial ticks can revisit an older observation.
+            // Reuse the sample without replaying transitions or poisoning the instance.
+            if (!Double.isNaN(lastTime) && nowSeconds <= lastTime) return last;
             if (!entered) {
                 entered = true; enteredAt = nowSeconds;
                 run(states.get(current).entry,context,0);
@@ -96,17 +103,26 @@ public final class BedrockAnimationController {
             }
             State state = states.get(current);
             double elapsed = nowSeconds-enteredAt;
-            Sample sampled = evaluate(state,elapsed,context,sampler);
-            Map<String,BedrockAnimation.Pose> displayed = blend(sampled.poses,nowSeconds);
-            Map<String,Object> facts = Map.of("state_time",elapsed,"any_animation_finished",anyFinished?1d:0d,
-                "all_animations_finished",sampled.finished?1d:0d);
-            String next = context.withVariables(currentVariables,()->context.withQueries(facts,()-> {
-                for (Transition transition : state.transitions)
-                    if (Molang.truth(transition.condition.evaluate(context))) return transition.destination;
-                return null;
-            }));
+            remap(state,elapsed,context);
+            // Unconditional/input-driven transitions select the frame's state
+            // before running its clips. Ping-pong physics controllers must not
+            // integrate both the outgoing and incoming states in one frame.
+            String next=transition(state,elapsed,last.finished,context);
+            Sample sampled=last;
+            Map<String,BedrockAnimation.Pose> displayed=last.poses;
+            if(next==null) {
+                sampled=evaluate(state,elapsed,context,sampler);
+                displayed=blend(sampled.poses,nowSeconds);
+                // Completion may become true only after advancing a clip.
+                next=transition(state,elapsed,sampled.finished,context);
+            }
             // Bedrock evaluates ordered transitions once per frame, not an unbounded transition loop.
             if (next != null) {
+                for(var effect:state.effects)if(effect.action.kind()==BedrockEntityEffect.Kind.PARTICLE) {
+                    var action=effect.action;
+                    effects.accept(new BedrockEntityEffect(BedrockEntityEffect.Kind.PARTICLE_STOP,
+                        action.effect(),action.locator(),action.preEffectScript(),action.bindToActor(),true));
+                }
                 context.withVariables(currentVariables,()->{run(state.exit,context,elapsed);return null;});
                 current = next; enteredAt = nowSeconds;stateEpoch++;
                 outgoing = displayed; blendAt = nowSeconds; blendDuration = state.blendSeconds;outgoingCurve=state.blendCurve;
@@ -120,8 +136,27 @@ public final class BedrockAnimationController {
             last = new Sample(displayed,sampled.finished,sampled.replacedBones);
             return last;
         }
+        private String transition(State state,double elapsed,boolean finished,Molang.Context context) {
+            var facts=Map.<String,Object>of("state_time",elapsed,"any_animation_finished",anyFinished?1d:0d,
+                "all_animations_finished",finished?1d:0d);
+            return context.withVariables(currentVariables,()->context.withQueries(facts,()-> {
+                for (Transition transition : state.transitions)
+                    if (Molang.truth(transition.condition.evaluate(context))) return transition.destination;
+                return null;
+            }));
+        }
         private boolean anyFinished;
-        private Sample evaluate(State state,double elapsed,Molang.Context context,ContextualSampler sampler) {
+        private void remap(State state,double elapsed,Molang.Context context) {
+            context.withQueries(Map.of("state_time",elapsed),()-> {
+                Map<String,Object> remapped=new LinkedHashMap<>();
+                for(var variable:state.variables) {
+                    double input=Molang.number(variable.input.evaluate(context));
+                    remapped.put(variable.name,variable.curve==null?input:variable.curve.sample(input));
+                }
+                currentVariables=Map.copyOf(remapped);return null;
+            });
+        }
+        private Sample evaluate(State state,double elapsed,Molang.Context context,HierarchicalSampler sampler) {
             return context.withQueries(Map.of("state_time",elapsed),()-> {
                 Map<String,Object> remapped=new LinkedHashMap<>();
                 for(var variable:state.variables) {
@@ -136,10 +171,13 @@ public final class BedrockAnimationController {
                 for (Animation animation : state.animations) {
                     double weight = Molang.number(animation.weight.evaluate(context));
                     if (!Double.isFinite(weight)) throw new IllegalArgumentException("Non-finite animation weight");
-                    // Clips advance even at zero blend weight, so completion queries remain meaningful.
-                    Sample clip = sampler.sample(animation.alias,elapsed,context,Map.copyOf(result),weight);
-                    all &= clip.finished; anyFinished |= clip.finished;
+                    // Disabled branches must not run physics scripts or mutate shared temporaries.
                     if(weight==0)continue;
+                    // Carry replacement metadata with the accumulated deltas. A nested
+                    // override also resets the inherited outer pose seen by later clips.
+                    Sample clip = sampler.sample(animation.alias,elapsed,context,
+                        new Sample(Map.copyOf(result),all,Set.copyOf(replaced)),weight);
+                    all &= clip.finished; anyFinished |= clip.finished;
                     clip.replacedBones.forEach(result::remove);replaced.addAll(clip.replacedBones);
                     accumulate(result,clip.poses,weight);
                 }
@@ -169,20 +207,22 @@ public final class BedrockAnimationController {
 
     private static List<Effect> effects(JsonObject state) {
         List<Effect> result=new ArrayList<>();
-        for(var kind:BedrockEntityEffect.Kind.values()) {
+        for(var kind:List.of(BedrockEntityEffect.Kind.SOUND,BedrockEntityEffect.Kind.PARTICLE)) {
             String key=kind==BedrockEntityEffect.Kind.SOUND?"sound_effects":"particle_effects";
             if(!state.has(key))continue;
             for(var value:state.getAsJsonArray(key)) {
                 JsonObject effect=value.getAsJsonObject();
                 result.add(new Effect(new BedrockEntityEffect(kind,effect.get("effect").getAsString(),
-                    effect.has("locator")?effect.get("locator").getAsString():""),
+                    effect.has("locator")?effect.get("locator").getAsString():"",
+                    effect.has("pre_effect_script")?effect.get("pre_effect_script").getAsString():"",
+                    !effect.has("bind_to_actor")||effect.get("bind_to_actor").getAsBoolean(),true),
                     Molang.compile(effect.has("pre_effect_script")?effect.get("pre_effect_script").getAsString():"0")));
             }
         }
         return List.copyOf(result);
     }
     private static void emit(State state,Molang.Context context,Consumer<BedrockEntityEffect> sink) {
-        for(Effect effect:state.effects){effect.script.evaluate(context);sink.accept(effect.action);}
+        for(Effect effect:state.effects){if(effect.action.kind()==BedrockEntityEffect.Kind.SOUND)effect.script.evaluate(context);sink.accept(effect.action);}
     }
 
     public static void accumulate(Map<String,BedrockAnimation.Pose> target,Map<String,BedrockAnimation.Pose> source,double weight) {

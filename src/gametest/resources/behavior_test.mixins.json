@@ -1,0 +1,1 @@
+{"required":true,"package":"dev.matanyah.bedrockcompat.test.mixin","compatibilityLevel":"JAVA_25","client":["BehaviorTestShutdownMixin"],"injectors":{"defaultRequire":1}}
